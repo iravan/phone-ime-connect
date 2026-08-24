@@ -136,10 +136,16 @@ network, where other devices are untrusted:
   write and the Ctrl+V keystroke) from arbitrary clients as a security
   measure. On Wayland, PhoneChat's typing may silently do nothing even
   though the phone shows the message as delivered. This is a compositor
-  policy, not something PhoneChat can work around; X11 and Xwayland
-  sessions are unaffected. If the paste keystroke doesn't land, the
-  message is still sitting on the clipboard -- a manual Ctrl+V/Cmd+V works
-  as a fallback.
+  policy, not something PhoneChat can work around. If the paste keystroke
+  doesn't land, the message is still sitting on the clipboard -- a manual
+  Ctrl+V/Cmd+V works as a fallback.
+- **First keystroke on GNOME/Mutter**: newer Mutter versions gate
+  synthetic input -- including the legacy XTest-via-XWayland path
+  `enigo` uses here -- behind the `RemoteDesktop` portal's consent
+  dialog, even in an otherwise-X11/Xwayland session. Expect a one-time
+  "allow remote desktop interaction"-style prompt the first time
+  PhoneChat actually sends a keystroke; typing works normally after
+  it's granted.
 - Delivery works by placing the message on the clipboard and simulating a
   paste, specifically *because* simulating individual keypresses (the
   previous approach, via `libxdo` on Linux) only has keycodes for the
