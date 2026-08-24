@@ -144,10 +144,15 @@ network, where other devices are untrusted:
   (defense in depth against scanning or log-spam, not against
   brute-forcing 256 bits of entropy, which is already computationally
   infeasible).
-- The dashboard (which shows the QR code and message history, and needs no
-  token) is reachable only from `127.0.0.1` -- it's served from a second,
-  separate listening socket bound to loopback only, and every request is
-  additionally checked against the connecting socket's own remote address.
+- The same QR code/status/history is also always served as an HTML
+  dashboard page (needs no token), reachable only from `127.0.0.1` -- a
+  second, separate listening socket bound to loopback only, with every
+  request additionally checked against the connecting socket's own
+  remote address. Windows/macOS currently rely on this (opened in your
+  browser); on Linux, the native window gets the same live updates
+  directly in-process instead, but the page is still there at
+  `https://127.0.0.1:<port>/dashboard` if you ever want it -- e.g. to
+  check status from another browser tab on the same machine.
 - Nothing is persisted to disk. Chat history is an in-memory ring buffer
   (the last 10 messages) that vanishes the moment the app stops.
 - Each message is placed on the system clipboard just long enough to paste
