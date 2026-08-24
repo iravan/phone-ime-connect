@@ -46,16 +46,30 @@ async fn main() {
             quit: Box::new(move || quit_notify_for_quit.notify_waiters()),
         }
     };
-    let tray_handle = tray::linux::spawn(callbacks)
-        .await
-        .expect("failed to start tray icon");
+    // A missing tray icon (e.g. stock GNOME Shell has no
+    // StatusNotifierWatcher unless the user installs an extension -- see
+    // the README's "Platform notes") shouldn't take down an otherwise
+    // working pairing server: fall back to running headless, quittable
+    // with Ctrl+C, rather than failing outright.
+    let tray_handle = match tray::linux::spawn(callbacks).await {
+        Ok(handle) => Some(handle),
+        Err(err) => {
+            log::warn!(
+                "Could not start the tray icon ({err}); running without one. \
+                 Use the dashboard's \"New code\" button and Ctrl+C to quit."
+            );
+            None
+        }
+    };
 
     tokio::select! {
         _ = quit_notify.notified() => {}
         _ = tokio::signal::ctrl_c() => {}
     }
 
-    tray_handle.shutdown().await;
+    if let Some(tray_handle) = tray_handle {
+        tray_handle.shutdown().await;
+    }
     server.stop().await;
 }
 

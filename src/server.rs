@@ -427,8 +427,10 @@ impl PairingServer {
         })?;
 
         let lan_listener = std::net::TcpListener::bind((lan_ip, 0))?;
+        lan_listener.set_nonblocking(true)?;
         let lan_addr = lan_listener.local_addr()?;
         let dash_listener = std::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0))?;
+        dash_listener.set_nonblocking(true)?;
         let dash_addr = dash_listener.local_addr()?;
 
         let tls_config = tls::load_or_create_config().await?;
