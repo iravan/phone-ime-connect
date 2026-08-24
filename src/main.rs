@@ -12,6 +12,7 @@ mod tray;
 
 use std::sync::Arc;
 
+#[cfg(target_os = "linux")]
 use server::PairingServer;
 
 fn on_message_callback(injector: Arc<injector::Injector>) -> Arc<dyn Fn(String) + Send + Sync> {
