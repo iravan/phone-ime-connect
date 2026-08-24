@@ -1,3 +1,17 @@
+// A plain Windows executable defaults to the "console" subsystem, which
+// makes Windows allocate and show a console window behind the app the
+// moment it starts, even though nothing here ever reads from or writes
+// anything meaningful to it -- this switches the linker over to the
+// "windows" subsystem instead, so no console window appears at all when
+// launched normally (double-click, Start menu, etc). Console output
+// (`log::info!`/`log::warn!` under `RUST_LOG=...`) still shows up fine
+// when launched *from* an existing console like PowerShell, since stdio
+// is inherited either way -- this only changes whether Windows creates a
+// *new* one when there isn't already one attached. A no-op everywhere
+// else: `cfg_attr` means this attribute is only emitted at all when
+// actually compiling for Windows.
+#![cfg_attr(windows, windows_subsystem = "windows")]
+
 mod i18n;
 mod injector;
 mod instance;

@@ -11,6 +11,15 @@
 
 use std::sync::OnceLock;
 
+// Every field here is read by *some* platform's window/tray module, but
+// no single platform build uses all of them (e.g. `history_header`,
+// `history_empty`, and `copy_to_clipboard_tooltip` are only read by the
+// Linux GTK window's per-row history list; `tray_show_window` and
+// `tray_quit` only by the macOS menu-bar tray). That makes an
+// any-platform build legitimately warn about the fields the *other*
+// platforms use -- not actual dead code, just cross-platform sharing of
+// one struct.
+#[allow(dead_code)]
 pub struct Strings {
     pub connecting: &'static str,
     pub hint_scan: &'static str,

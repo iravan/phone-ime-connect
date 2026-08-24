@@ -42,6 +42,13 @@ account, no cloud service, and no app to install.
    history of the last few messages sent (with a "Clear history" button
    on Linux and Windows to wipe that history early).
 
+The desktop window's own text (status/hint/button labels) is shown in
+English or Traditional Chinese, picked automatically from the OS's UI
+language at startup (`src/i18n.rs`) -- no setting to change it. The phone
+page (`webapp/chat.html`) is unrelated to this: it localizes itself from
+the *phone's* browser language instead, since the phone and desktop are
+different devices with no reason to share a UI language.
+
 Only one phone can be paired at a time. Scanning a new QR code (the
 window's "New code" button) invalidates the old one.
 
@@ -142,6 +149,18 @@ History doesn't have the Linux window's per-row hover-to-copy button --
 widgets without a much larger owner-drawn-ListView undertaking. Instead
 it's a read-only text box with a "Copy last message" button and a
 "Clear history" button.
+
+**SmartScreen warning ("Windows protected your PC")**: a prebuilt `.exe`
+downloaded from this repo's [Releases](../../releases) page is unsigned,
+so Windows shows this generic warning the first time it's run, regardless
+of the binary's actual behavior -- new, unsigned software from an
+unrecognized publisher gets it by default until enough people have
+run it (or until it's signed with a paid code-signing certificate). To
+run it anyway: click **More info**, then **Run anyway**; or right-click
+the downloaded file → Properties → check **Unblock** → OK, then run it.
+Building from source with `cargo build --release` instead avoids the
+warning entirely, since the binary was compiled locally rather than
+downloaded.
 
 ### macOS
 
