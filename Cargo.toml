@@ -1,6 +1,6 @@
 [package]
 name = "phone-input-connect"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 license = "GPL-3.0-or-later"
 description = "Type on your desktop by texting it from your phone"
@@ -54,4 +54,12 @@ assets = [
     ["target/release/phone-input-connect", "usr/bin/", "755"],
     ["packaging/linux/org.phoneinputconnect.PhoneInputConnect.desktop", "usr/share/applications/", "644"],
     ["assets/icon-256.png", "usr/share/icons/hicolor/256x256/apps/phone-input-connect.png", "644"],
+]
+
+[package.metadata.generate-rpm]
+summary = "Type on your desktop by texting it from your phone"
+assets = [
+    { source = "target/release/phone-input-connect", dest = "/usr/bin/phone-input-connect", mode = "755" },
+    { source = "packaging/linux/org.phoneinputconnect.PhoneInputConnect.desktop", dest = "/usr/share/applications/org.phoneinputconnect.PhoneInputConnect.desktop", mode = "644" },
+    { source = "assets/icon-256.png", dest = "/usr/share/icons/hicolor/256x256/apps/phone-input-connect.png", mode = "644" },
 ]
