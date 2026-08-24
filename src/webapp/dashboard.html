@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PhoneChat</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f4f5f7;
+    --fg: #1c1e21;
+    --muted: #6b7280;
+    --card-bg: #ffffff;
+    --card-border: #e2e4e8;
+    --accent: #2f6feb;
+    --accent-fg: #ffffff;
+    --ok: #2f9e44;
+    --warn: #c92a2a;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #17181c;
+      --fg: #e7e9ec;
+      --muted: #9aa0a8;
+      --card-bg: #24262b;
+      --card-border: #34363c;
+      --accent: #3b7cf6;
+      --accent-fg: #ffffff;
+      --ok: #51cf66;
+      --warn: #ff6b64;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; background: var(--bg); color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+      Helvetica, Arial, sans-serif;
+    display: flex; justify-content: center; padding: 2rem 1rem;
+  }
+  main { width: 100%; max-width: 380px; }
+  h1 { font-size: 1.2rem; margin: 0 0 0.25rem; }
+  #status { font-size: 0.9rem; margin-bottom: 1.25rem; }
+  #status.ok { color: var(--ok); font-weight: 600; }
+  #status.warn { color: var(--warn); font-weight: 600; }
+  .card {
+    background: var(--card-bg); border: 1px solid var(--card-border);
+    border-radius: 12px; padding: 1.25rem; text-align: center;
+  }
+  .card img { width: 220px; height: 220px; image-rendering: pixelated; }
+  .card p.hint { color: var(--muted); font-size: 0.85rem; margin: 0.75rem 0 0; }
+  #history { margin-top: 1.25rem; display: flex; flex-direction: column; gap: 0.5rem; }
+  .msg {
+    background: var(--card-bg); border: 1px solid var(--card-border);
+    border-radius: 10px; padding: 0.5rem 0.75rem; font-size: 0.9rem;
+    white-space: pre-wrap; word-break: break-word;
+  }
+  button {
+    margin-top: 1rem; border: none; border-radius: 10px; padding: 0.6rem 1rem;
+    background: var(--accent); color: var(--accent-fg); font-size: 0.95rem;
+    font-weight: 600; cursor: pointer; width: 100%;
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>PhoneChat</h1>
+  <div id="status" class="warn">Connecting…</div>
+  <div class="card">
+    <img id="qr" alt="QR code to pair a phone" hidden>
+    <p class="hint" id="qr-hint">Scan with a phone on the same network.</p>
+    <button id="regenerate" type="button">New code</button>
+  </div>
+  <div id="history"></div>
+</main>
+<script>
+(function () {
+  'use strict';
+  var statusEl = document.getElementById('status');
+  var qrEl = document.getElementById('qr');
+  var qrHintEl = document.getElementById('qr-hint');
+  var historyEl = document.getElementById('history');
+  var regenerateBtn = document.getElementById('regenerate');
+
+  var ws = new WebSocket('wss://' + location.host + '/dashboard/ws');
+
+  function render(snapshot) {
+    if (snapshot.connected) {
+      statusEl.textContent = 'Phone connected';
+      statusEl.className = 'ok';
+      qrEl.hidden = true;
+      qrHintEl.textContent = 'Messages you send from the phone appear below.';
+    } else {
+      statusEl.textContent = 'Waiting for a phone to scan the code below';
+      statusEl.className = 'warn';
+      qrEl.src = snapshot.qr_data_uri;
+      qrEl.hidden = false;
+      qrHintEl.textContent = 'Scan with a phone on the same network.';
+    }
+    historyEl.innerHTML = '';
+    (snapshot.history || []).forEach(function (item) {
+      var div = document.createElement('div');
+      div.className = 'msg';
+      div.textContent = item.text; // never innerHTML
+      historyEl.appendChild(div);
+    });
+  }
+
+  ws.addEventListener('message', function (event) {
+    try {
+      render(JSON.parse(event.data));
+    } catch (e) { /* ignore malformed frames */ }
+  });
+
+  ws.addEventListener('close', function () {
+    statusEl.textContent = 'Disconnected from desktop app';
+    statusEl.className = 'warn';
+  });
+
+  regenerateBtn.addEventListener('click', function () {
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'regenerate' }));
+    }
+  });
+})();
+</script>
+</body>
+</html>

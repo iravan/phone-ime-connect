@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Desktop Input</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f4f5f7;
+    --fg: #1c1e21;
+    --muted: #6b7280;
+    --bubble-bg: #ffffff;
+    --bubble-border: #e2e4e8;
+    --accent: #2f6feb;
+    --accent-fg: #ffffff;
+    --danger: #b3261e;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #17181c;
+      --fg: #e7e9ec;
+      --muted: #9aa0a8;
+      --bubble-bg: #24262b;
+      --bubble-border: #34363c;
+      --accent: #3b7cf6;
+      --accent-fg: #ffffff;
+      --danger: #ff6b64;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: var(--bg); color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+      Helvetica, Arial, sans-serif;
+  }
+  body {
+    display: flex; flex-direction: column;
+    height: 100vh; height: 100dvh;
+  }
+  header {
+    padding: 0.9rem 1rem; border-bottom: 1px solid var(--bubble-border);
+    display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0;
+  }
+  header h1 { font-size: 1.05rem; margin: 0; font-weight: 600; }
+  #status-dot {
+    width: 0.55rem; height: 0.55rem; border-radius: 50%;
+    background: var(--muted); flex-shrink: 0;
+  }
+  #status-dot.ok { background: #2fa84f; }
+  #status-dot.err { background: var(--danger); }
+  #status-text { font-size: 0.8rem; color: var(--muted); margin-left: auto; }
+  #history {
+    flex: 1; overflow-y: auto; padding: 1rem;
+    display: flex; flex-direction: column; gap: 0.5rem;
+  }
+  .bubble {
+    max-width: 80%; padding: 0.55rem 0.8rem; border-radius: 1rem;
+    background: var(--bubble-bg); border: 1px solid var(--bubble-border);
+    align-self: flex-start; word-break: break-word; white-space: pre-wrap;
+    font-size: 0.95rem; line-height: 1.35;
+  }
+  .bubble.mine {
+    align-self: flex-end; background: var(--accent); color: var(--accent-fg);
+    border-color: var(--accent);
+  }
+  .bubble.system {
+    align-self: center; background: transparent; border: none;
+    color: var(--muted); font-size: 0.8rem; text-align: center;
+  }
+  .bubble .tick { font-size: 0.7rem; opacity: 0.75; display: block; margin-top: 0.15rem; }
+  form#composer {
+    display: flex; gap: 0.5rem; padding: 0.75rem;
+    border-top: 1px solid var(--bubble-border); flex-shrink: 0;
+    background: var(--bg);
+  }
+  #text {
+    flex: 1; border: 1px solid var(--bubble-border); border-radius: 1.2rem;
+    padding: 0.6rem 1rem; font-size: 1rem; background: var(--bubble-bg);
+    color: var(--fg); outline: none;
+  }
+  #text:focus { border-color: var(--accent); }
+  #send {
+    border: none; border-radius: 1.2rem; padding: 0 1.1rem;
+    background: var(--accent); color: var(--accent-fg); font-size: 1rem;
+    font-weight: 600; cursor: pointer;
+  }
+  #send:disabled { opacity: 0.5; cursor: not-allowed; }
+</style>
+</head>
+<body>
+<header>
+  <span id="status-dot"></span>
+  <h1>Desktop Input</h1>
+  <span id="status-text">Connecting…</span>
+</header>
+<div id="history"></div>
+<form id="composer" autocomplete="off">
+  <input id="text" type="text" placeholder="Type a message…" maxlength="2000" autocomplete="off">
+  <button id="send" type="submit">Send</button>
+</form>
+<script>
+(function () {
+  'use strict';
+  var HISTORY_MAX = 10;
+  var historyEl = document.getElementById('history');
+  var statusDot = document.getElementById('status-dot');
+  var statusText = document.getElementById('status-text');
+  var form = document.getElementById('composer');
+  var input = document.getElementById('text');
+  var sendBtn = document.getElementById('send');
+
+  function trimHistory() {
+    while (historyEl.children.length > HISTORY_MAX) {
+      historyEl.removeChild(historyEl.firstChild);
+    }
+  }
+
+  function addBubble(kind, text, tick) {
+    var el = document.createElement('div');
+    el.className = 'bubble ' + kind;
+    el.textContent = text; // never innerHTML: no message content is ever parsed as markup
+    if (tick) {
+      var t = document.createElement('span');
+      t.className = 'tick';
+      t.textContent = tick;
+      el.appendChild(t);
+    }
+    historyEl.appendChild(el);
+    trimHistory();
+    historyEl.scrollTop = historyEl.scrollHeight;
+    return el;
+  }
+
+  function setStatus(kind, label) {
+    statusDot.className = kind;
+    statusText.textContent = label;
+  }
+
+  var wsProto = (location.protocol === 'https:') ? 'wss://' : 'ws://';
+  var ws = new WebSocket(wsProto + location.host + location.pathname + '/ws');
+  var pending = [];
+
+  ws.addEventListener('open', function () {
+    setStatus('ok', 'Connected');
+  });
+
+  ws.addEventListener('close', function () {
+    setStatus('err', 'Disconnected — ask the desktop for a new code');
+    sendBtn.disabled = true;
+    input.disabled = true;
+  });
+
+  ws.addEventListener('error', function () {
+    setStatus('err', 'Connection error');
+  });
+
+  ws.addEventListener('message', function (event) {
+    var msg;
+    try {
+      msg = JSON.parse(event.data);
+    } catch (e) {
+      return;
+    }
+    if (msg.type === 'history') {
+      (msg.items || []).forEach(function (item) {
+        addBubble('mine', item.text, 'sent');
+      });
+    } else if (msg.type === 'ack') {
+      if (pending.length) {
+        var bubble = pending.shift();
+        var tick = bubble.querySelector('.tick');
+        if (tick) { tick.textContent = 'delivered'; }
+      }
+    } else if (msg.type === 'error') {
+      addBubble('system', msg.message || 'Error');
+    }
+  });
+
+  form.addEventListener('submit', function (event) {
+    event.preventDefault();
+    var text = input.value;
+    if (!text || !text.trim()) { return; }
+    if (ws.readyState !== WebSocket.OPEN) { return; }
+    ws.send(JSON.stringify({ type: 'message', text: text }));
+    var bubble = addBubble('mine', text, 'sending…');
+    pending.push(bubble);
+    input.value = '';
+    input.focus();
+  });
+})();
+</script>
+</body>
+</html>
