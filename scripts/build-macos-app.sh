@@ -34,8 +34,20 @@ for spec in "16:16" "16:32:@2x" "32:32" "32:64:@2x" "128:128" "128:256:@2x" \
 done
 iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/AppIcon.icns"
 
-echo "==> Ad-hoc code-signing (so macOS treats it as a stable app identity)"
-codesign --force --deep --sign - "$APP"
+# Sign with a Developer ID identity when one is provided (MACOS_SIGN_IDENTITY,
+# e.g. "Developer ID Application: Name (TEAMID)") -- that plus notarization is
+# what lets a downloaded app open without Gatekeeper's "cannot verify" wall.
+# Notarization additionally requires the hardened runtime and a secure
+# timestamp. With no identity set, fall back to ad-hoc for local development.
+IDENTITY="${MACOS_SIGN_IDENTITY:--}"
+if [ "$IDENTITY" = "-" ]; then
+  echo "==> Ad-hoc code-signing (local dev; not notarizable)"
+  codesign --force --sign - "$APP"
+else
+  echo "==> Code-signing with Developer ID: $IDENTITY"
+  codesign --force --options runtime --timestamp --sign "$IDENTITY" "$APP"
+  codesign --verify --strict --verbose=2 "$APP"
+fi
 
 echo
 echo "==> Done: $APP"

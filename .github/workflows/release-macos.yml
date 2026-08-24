@@ -2,6 +2,21 @@ name: Release macOS (Apple Silicon)
 
 # Builds the double-clickable PhoneInputConnect.app for Apple Silicon
 # (arm64 -- M1/M2/M3...). Runs on a tag push like `v0.1.0`, or on demand.
+#
+# When the signing/notarization secrets below are configured, the app is
+# Developer ID signed, notarized, and stapled, so it opens on a downloader's
+# Mac without Gatekeeper's "Apple could not verify..." wall. Without them it
+# falls back to ad-hoc signing (fine for local use; downloads are blocked).
+#
+# Required repository secrets for signed + notarized builds:
+#   MACOS_CERTIFICATE_P12       base64 of the exported "Developer ID
+#                               Application" cert+key (.p12)
+#   MACOS_CERTIFICATE_PASSWORD  the .p12 export password
+#   MACOS_SIGN_IDENTITY         e.g. "Developer ID Application: Your Name (TEAMID)"
+#   MACOS_NOTARY_APPLE_ID       Apple ID email used for notarization
+#   MACOS_NOTARY_PASSWORD       an app-specific password for that Apple ID
+#   MACOS_NOTARY_TEAM_ID        your 10-character Apple Developer Team ID
+
 on:
   push:
     tags: ["v*"]
@@ -9,6 +24,10 @@ on:
 
 permissions:
   contents: write # needed to attach the .app to a GitHub Release
+
+env:
+  # 'true' only when the Developer ID cert secret is present.
+  HAS_SIGNING: ${{ secrets.MACOS_CERTIFICATE_P12 != '' }}
 
 jobs:
   build:
@@ -24,10 +43,48 @@ jobs:
           rustup default stable
           rustc -vV
 
+      - name: Import Developer ID certificate
+        if: env.HAS_SIGNING == 'true'
+        env:
+          CERT_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
+          CERT_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+        run: |
+          KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+          security create-keychain -p actions "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p actions "$KEYCHAIN"
+          echo "$CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" -P "$CERT_PASSWORD" \
+            -T /usr/bin/codesign
+          # Allow codesign to use the key without an interactive prompt.
+          security set-key-partition-list -S apple-tool:,apple:,codesign: \
+            -s -k actions "$KEYCHAIN" >/dev/null
+          # Put our keychain first in the search list so codesign finds the key.
+          security list-keychains -d user -s "$KEYCHAIN" \
+            $(security list-keychains -d user | tr -d '"')
+
       - name: Build PhoneInputConnect.app
+        env:
+          MACOS_SIGN_IDENTITY: ${{ env.HAS_SIGNING == 'true' && secrets.MACOS_SIGN_IDENTITY || '-' }}
         run: ./scripts/build-macos-app.sh
 
-      - name: Zip the app bundle (ditto preserves the code signature)
+      - name: Notarize and staple
+        if: env.HAS_SIGNING == 'true'
+        env:
+          APPLE_ID: ${{ secrets.MACOS_NOTARY_APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.MACOS_NOTARY_PASSWORD }}
+          TEAM_ID: ${{ secrets.MACOS_NOTARY_TEAM_ID }}
+        run: |
+          ditto -c -k --keepParent \
+            target/release/PhoneInputConnect.app "$RUNNER_TEMP/notarize.zip"
+          xcrun notarytool submit "$RUNNER_TEMP/notarize.zip" \
+            --apple-id "$APPLE_ID" --password "$APPLE_PASSWORD" --team-id "$TEAM_ID" \
+            --wait
+          # Attach the notarization ticket to the app so it verifies offline.
+          xcrun stapler staple target/release/PhoneInputConnect.app
+          spctl -a -vvv --type exec target/release/PhoneInputConnect.app || true
+
+      - name: Zip the app bundle (ditto preserves signature + stapled ticket)
         run: |
           mkdir -p dist
           ditto -c -k --keepParent \
