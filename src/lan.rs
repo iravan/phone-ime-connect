@@ -68,16 +68,60 @@ fn physical_lan_interface() -> Option<Ipv4Addr> {
 
 /// VPN / point-to-point tunnel interface names, whose address a phone on the
 /// local Wi-Fi cannot reach.
+///
+/// macOS/Linux kernel interface names (`utun4`, `ipsec0`, `wg0`, ...) are
+/// short, lowercase, and stable, so a prefix match was enough there. Windows
+/// is different: `if-addrs` reports the adapter's *friendly name* on
+/// Windows (e.g. "Wi-Fi", "Ethernet 2", "Cisco AnyConnect Secure Mobility
+/// Client VPN Adapter"), which is capitalized, can contain spaces, and puts
+/// the identifying word anywhere in the string rather than at the start --
+/// a plain `starts_with` on a lowercase prefix never matches any of that.
+/// So this also does a case-insensitive substring search for common VPN
+/// client names. This list is necessarily best-effort (there is no
+/// programmatic "is this a VPN adapter" flag exposed by `if-addrs`, and it
+/// hasn't been tested against a real VPN client on Windows) -- the
+/// `PHONE_INPUT_CONNECT_LAN_IP` escape hatch above remains the reliable
+/// fix for a setup this still gets wrong.
 fn is_tunnel(name: &str) -> bool {
     const TUNNEL_PREFIXES: [&str; 7] = ["utun", "tun", "tap", "ppp", "ipsec", "wg", "gpd"];
-    TUNNEL_PREFIXES.iter().any(|p| name.starts_with(p))
+    if TUNNEL_PREFIXES.iter().any(|p| name.starts_with(p)) {
+        return true;
+    }
+    const TUNNEL_KEYWORDS: [&str; 17] = [
+        "vpn",
+        "tap-windows",
+        "wireguard",
+        "openvpn",
+        "tailscale",
+        "zerotier",
+        "globalprotect",
+        "pangp", // Palo Alto GlobalProtect's virtual adapter is typically "PANGP ..."
+        "anyconnect",
+        "pulse secure",
+        "junos pulse",
+        "checkpoint",
+        "forticlient",
+        "zscaler",
+        "sonicwall",
+        "hamachi",
+        "softether",
+    ];
+    let lower = name.to_ascii_lowercase();
+    TUNNEL_KEYWORDS.iter().any(|k| lower.contains(k))
 }
 
-/// Physical Wi-Fi / Ethernet interface names (macOS `en*`, Linux
-/// `eth*`/`wl*`).
+/// Physical Wi-Fi / Ethernet interface names: macOS/Linux kernel names
+/// (`en*`, `eth*`, `wl*`) plus Windows friendly names ("Wi-Fi", "Ethernet",
+/// "Local Area Connection"), matched case-insensitively -- see `is_tunnel`
+/// for why Windows needs different handling than the other two platforms.
 fn is_physical(name: &str) -> bool {
     const PHYSICAL_PREFIXES: [&str; 3] = ["en", "eth", "wl"];
-    PHYSICAL_PREFIXES.iter().any(|p| name.starts_with(p))
+    if PHYSICAL_PREFIXES.iter().any(|p| name.starts_with(p)) {
+        return true;
+    }
+    const PHYSICAL_PREFIXES_CI: [&str; 3] = ["wi-fi", "ethernet", "local area connection"];
+    let lower = name.to_ascii_lowercase();
+    PHYSICAL_PREFIXES_CI.iter().any(|p| lower.starts_with(p))
 }
 
 /// Fallback: ask the kernel which local address it would route an outbound
@@ -110,5 +154,18 @@ mod tests {
         // they stay as low-priority fallbacks.
         assert!(!is_physical("bridge100"));
         assert!(!is_tunnel("bridge100"));
+
+        // Windows reports friendly names, not kernel device names -- these
+        // must still classify correctly even though they're capitalized,
+        // contain spaces, and put the identifying word anywhere.
+        assert!(is_physical("Wi-Fi"));
+        assert!(is_physical("Ethernet 2"));
+        assert!(is_physical("Local Area Connection* 9"));
+        assert!(is_tunnel("Cisco AnyConnect Secure Mobility Client VPN Adapter"));
+        assert!(is_tunnel("TAP-Windows Adapter V9"));
+        assert!(is_tunnel("PANGP Virtual Ethernet Adapter"));
+        assert!(is_tunnel("WireGuard Tunnel"));
+        assert!(!is_tunnel("Wi-Fi"));
+        assert!(!is_tunnel("Ethernet 2"));
     }
 }

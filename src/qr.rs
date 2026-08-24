@@ -1,4 +1,5 @@
-//! Renders a URL as a QR-code PNG data URI for the dashboard page.
+//! Renders a URL as a QR-code PNG data URI for each native window to
+//! display.
 //!
 //! Builds the image ourselves from `qrcode`'s bit matrix rather than using
 //! its optional "image" feature, keeping the dependency footprint small

@@ -1,7 +1,16 @@
-//! The local HTTPS+WSS server a phone pairs with, plus a desktop-local
-//! "dashboard" endpoint used to show the QR code/status/history without
-//! any GUI toolkit dependency -- `main.rs` just opens the dashboard URL in
-//! the default browser.
+//! The local HTTPS+WSS server a phone pairs with.
+//!
+//! There used to also be a desktop-local "dashboard" HTTP endpoint on
+//! 127.0.0.1, for viewing the QR code/status/history from an ordinary
+//! browser tab without needing a native GUI toolkit. It's gone now: every
+//! supported platform has its own native window (`window/` for
+//! Linux/Windows, `tray/appkit_dashboard.rs` for macOS), so that fallback
+//! had no remaining use, and removing it means the app only ever listens
+//! on the network once (the LAN-facing socket below), not twice. What's
+//! left of it is purely in-process: `dashboard_tx`/`broadcast_dashboard`/
+//! `subscribe_dashboard`/`dashboard_snapshot` are the live-status stream
+//! every native window renders from -- "dashboard" here just names that
+//! snapshot data, not a network endpoint.
 //!
 //! Security model (see README's "Security" section for the full
 //! writeup):
@@ -25,18 +34,12 @@
 //! - Failed-token requests are rate-limited per source IP (defense in
 //!   depth against scanning/log-spam, not against brute-forcing 256 bits,
 //!   which is already computationally infeasible).
-//! - The dashboard endpoints need no token, but are reachable only
-//!   because the server also binds a second listening socket on
-//!   127.0.0.1 -- and every dashboard request is additionally checked
-//!   against the connecting socket's own remote address, rejecting
-//!   anything that isn't loopback even if a LAN attacker somehow got a
-//!   packet routed there.
 //! - Nothing is persisted to disk: chat history is an in-memory ring
 //!   buffer capped at `HISTORY_MAX` and vanishes when the server stops.
 
 use std::collections::{HashMap, VecDeque};
 use std::io;
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
@@ -66,7 +69,6 @@ const RATE_LIMIT_WINDOW: Duration = Duration::from_secs(60);
 const RATE_LIMIT_BLOCK: Duration = Duration::from_secs(5 * 60);
 
 const CHAT_HTML: &str = include_str!("webapp/chat.html");
-const DASHBOARD_HTML: &str = include_str!("webapp/dashboard.html");
 
 #[derive(Clone, Serialize)]
 struct HistoryItem {
@@ -114,7 +116,6 @@ fn new_token() -> String {
 struct ServerState {
     lan_ip: Ipv4Addr,
     lan_port: u16,
-    dash_port: u16,
     token: Mutex<String>,
     token_created_at: Mutex<Instant>,
     active: Mutex<bool>,
@@ -418,86 +419,25 @@ async fn send_error(socket: &mut WebSocket, message: &str) -> bool {
         .is_ok()
 }
 
-async fn dashboard_page(ConnectInfo(addr): ConnectInfo<SocketAddr>) -> Response {
-    if !addr.ip().is_loopback() {
-        return StatusCode::NOT_FOUND.into_response();
-    }
-    html_response(DASHBOARD_HTML)
-}
-
-async fn dashboard_ws(
-    State(state): State<Arc<ServerState>>,
-    ConnectInfo(addr): ConnectInfo<SocketAddr>,
-    ws: WebSocketUpgrade,
-) -> Response {
-    if !addr.ip().is_loopback() {
-        return StatusCode::NOT_FOUND.into_response();
-    }
-    ws.on_upgrade(move |socket| handle_dashboard_socket(socket, state))
-}
-
-async fn handle_dashboard_socket(mut socket: WebSocket, state: Arc<ServerState>) {
-    let mut rx = state.dashboard_tx.subscribe();
-    if socket
-        .send(Message::Text(state.dashboard_snapshot_json()))
-        .await
-        .is_err()
-    {
-        return;
-    }
-    loop {
-        tokio::select! {
-            incoming = socket.recv() => {
-                match incoming {
-                    Some(Ok(Message::Text(text))) => {
-                        if let Ok(v) = serde_json::from_str::<serde_json::Value>(&text) {
-                            if v.get("type").and_then(|t| t.as_str()) == Some("regenerate") {
-                                state.force_new_code();
-                            }
-                        }
-                    }
-                    Some(Ok(Message::Close(_))) | None | Some(Err(_)) => break,
-                    _ => {}
-                }
-            }
-            update = rx.recv() => {
-                match update {
-                    Ok(payload) => {
-                        if socket.send(Message::Text(payload)).await.is_err() {
-                            break;
-                        }
-                    }
-                    Err(broadcast::error::RecvError::Closed) => break,
-                    Err(broadcast::error::RecvError::Lagged(_)) => continue,
-                }
-            }
-        }
-    }
-}
-
 fn build_router(state: Arc<ServerState>) -> Router {
     Router::new()
-        .route("/dashboard", get(dashboard_page))
-        .route("/dashboard/ws", get(dashboard_ws))
         .route("/:token", get(chat_page))
         .route("/:token/ws", get(chat_ws))
         .with_state(state)
 }
 
-/// Owns the two listening sockets (LAN-facing and loopback-only
-/// dashboard), the shared state, and the background token-expiry task.
+/// Owns the LAN-facing listening socket, the shared state, and the
+/// background token-expiry task.
 pub struct PairingServer {
     state: Arc<ServerState>,
     lan_handle: Handle<SocketAddr>,
-    dash_handle: Handle<SocketAddr>,
     lan_task: Mutex<Option<JoinHandle<()>>>,
-    dash_task: Mutex<Option<JoinHandle<()>>>,
     expiry_notify: Arc<Notify>,
     expiry_task: Mutex<Option<JoinHandle<()>>>,
 }
 
 impl PairingServer {
-    /// Starts both listeners. `on_message` is called (on a dedicated
+    /// Starts the listener. `on_message` is called (on a dedicated
     /// blocking thread, never the async runtime's own worker threads)
     /// every time a message arrives from the paired phone.
     pub async fn start(on_message: Arc<dyn Fn(String) + Send + Sync>) -> io::Result<Self> {
@@ -512,9 +452,6 @@ impl PairingServer {
         let lan_listener = std::net::TcpListener::bind((lan_ip, 0))?;
         lan_listener.set_nonblocking(true)?;
         let lan_addr = lan_listener.local_addr()?;
-        let dash_listener = std::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0))?;
-        dash_listener.set_nonblocking(true)?;
-        let dash_addr = dash_listener.local_addr()?;
 
         let tls_config = tls::load_or_create_config().await?;
 
@@ -522,7 +459,6 @@ impl PairingServer {
         let state = Arc::new(ServerState {
             lan_ip,
             lan_port: lan_addr.port(),
-            dash_port: dash_addr.port(),
             token: Mutex::new(new_token()),
             token_created_at: Mutex::new(Instant::now()),
             active: Mutex::new(false),
@@ -537,26 +473,12 @@ impl PairingServer {
         });
 
         let lan_handle = Handle::new();
-        let dash_handle = Handle::new();
 
         let lan_task = {
             let router = build_router(state.clone());
             let handle = lan_handle.clone();
-            let server =
-                axum_server::tls_rustls::from_tcp_rustls(lan_listener, tls_config.clone())?
-                    .handle(handle);
-            tokio::spawn(async move {
-                let _ = server
-                    .serve(router.into_make_service_with_connect_info::<SocketAddr>())
-                    .await;
-            })
-        };
-
-        let dash_task = {
-            let router = build_router(state.clone());
-            let handle = dash_handle.clone();
-            let server =
-                axum_server::tls_rustls::from_tcp_rustls(dash_listener, tls_config)?.handle(handle);
+            let server = axum_server::tls_rustls::from_tcp_rustls(lan_listener, tls_config)?
+                .handle(handle);
             tokio::spawn(async move {
                 let _ = server
                     .serve(router.into_make_service_with_connect_info::<SocketAddr>())
@@ -606,27 +528,20 @@ impl PairingServer {
         Ok(Self {
             state,
             lan_handle,
-            dash_handle,
             lan_task: Mutex::new(Some(lan_task)),
-            dash_task: Mutex::new(Some(dash_task)),
             expiry_notify,
             expiry_task: Mutex::new(Some(expiry_task)),
         })
     }
 
-    /// Shuts both listeners and the background token-expiry task down.
+    /// Shuts the listener and the background token-expiry task down.
     /// Takes `&self` (not owned `self`) so it can be called through an
     /// `Arc<PairingServer>` shared with tray-menu callbacks.
     pub async fn stop(&self) {
         self.lan_handle.shutdown();
-        self.dash_handle.shutdown();
         self.expiry_notify.notify_waiters();
         let lan_task = self.lan_task.lock().unwrap().take();
         if let Some(h) = lan_task {
-            let _ = h.await;
-        }
-        let dash_task = self.dash_task.lock().unwrap().take();
-        if let Some(h) = dash_task {
             let _ = h.await;
         }
         let expiry_task = self.expiry_task.lock().unwrap().take();
@@ -639,14 +554,28 @@ impl PairingServer {
         self.state.force_new_code();
     }
 
-    pub fn dashboard_url(&self) -> String {
-        format!("https://127.0.0.1:{}/dashboard", self.state.dash_port)
+    /// Wipes the in-memory message history (it was already never persisted
+    /// to disk -- this just lets the user clear it from the current
+    /// session without waiting for it to age out on its own). Doesn't
+    /// touch the pairing token or connection state, unlike
+    /// [`Self::regenerate_token`].
+    pub fn clear_history(&self) {
+        self.state.history.lock().unwrap().clear();
+        self.state.broadcast_dashboard();
     }
 
-    /// The same live-updating status the browser-based dashboard's
-    /// WebSocket streams, for an in-process UI (e.g. the native window on
-    /// Linux) to render without going through HTTP at all. Pair with
-    /// [`Self::dashboard_snapshot`] for the state as of right now.
+    /// The LAN-facing listener's own address. Not meant to be user-facing
+    /// (there's no browsable page here without a valid pairing token) --
+    /// its only purpose is letting a later launch's
+    /// `instance::find_running_instance` check whether this instance is
+    /// still alive and reachable.
+    pub fn lan_socket_addr(&self) -> SocketAddr {
+        SocketAddr::V4(SocketAddrV4::new(self.state.lan_ip, self.state.lan_port))
+    }
+
+    /// The live-updating status every native window renders from, for an
+    /// in-process UI to pull without any network involved at all. Pair
+    /// with [`Self::dashboard_snapshot`] for the state as of right now.
     pub fn subscribe_dashboard(&self) -> broadcast::Receiver<String> {
         self.state.dashboard_tx.subscribe()
     }

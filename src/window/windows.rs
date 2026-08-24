@@ -37,6 +37,7 @@ struct App {
     hint_label: nwg::Label,
     regenerate_button: nwg::Button,
     copy_last_button: nwg::Button,
+    clear_history_button: nwg::Button,
     history_box: nwg::TextBox,
     notice: nwg::Notice,
     layout: nwg::GridLayout,
@@ -63,6 +64,7 @@ pub fn run(runtime: Arc<tokio::runtime::Runtime>, server: Arc<PairingServer>) {
         hint_label: Default::default(),
         regenerate_button: Default::default(),
         copy_last_button: Default::default(),
+        clear_history_button: Default::default(),
         history_box: Default::default(),
         notice: Default::default(),
         layout: Default::default(),
@@ -72,7 +74,9 @@ pub fn run(runtime: Arc<tokio::runtime::Runtime>, server: Arc<PairingServer>) {
 
     nwg::Window::builder()
         .flags(nwg::WindowFlags::WINDOW | nwg::WindowFlags::VISIBLE)
-        .size((360, 600))
+        // Tall enough that `qr_frame`'s row-span below actually gets
+        // enough of the grid's vertical space -- see the comment there.
+        .size((360, 870))
         .title("PhoneInputConnect")
         .build(&mut app.window)
         .expect("failed to build the main window");
@@ -84,7 +88,17 @@ pub fn run(runtime: Arc<tokio::runtime::Runtime>, server: Arc<PairingServer>) {
         .expect("failed to build the status label");
 
     nwg::ImageFrame::builder()
-        .size((240, 240))
+        // `qr::build_data_uri`'s output isn't scaled to the frame --
+        // for this app's pairing URLs (fixed-length 256-bit token, so a
+        // fixed QR version) it renders at ~246x246px. `ImageFrame` uses
+        // SS_CENTERIMAGE, which draws the bitmap at its native size
+        // centered in the control and *clips* it if the control ends
+        // up smaller, rather than scaling it down to fit. This builder
+        // size is only GridLayout's starting hint (it stretches the
+        // control to its actual grid cell below), so what matters most
+        // is that cell being comfortably bigger than ~246px -- this is
+        // just kept in the same ballpark for a sane initial paint.
+        .size((300, 300))
         .parent(&app.window)
         .build(&mut app.qr_frame)
         .expect("failed to build the QR image frame");
@@ -107,6 +121,12 @@ pub fn run(runtime: Arc<tokio::runtime::Runtime>, server: Arc<PairingServer>) {
         .build(&mut app.copy_last_button)
         .expect("failed to build the copy-last-message button");
 
+    nwg::Button::builder()
+        .text("Clear history")
+        .parent(&app.window)
+        .build(&mut app.clear_history_button)
+        .expect("failed to build the clear-history button");
+
     nwg::TextBox::builder()
         .readonly(true)
         .parent(&app.window)
@@ -122,19 +142,26 @@ pub fn run(runtime: Arc<tokio::runtime::Runtime>, server: Arc<PairingServer>) {
         .parent(&app.window)
         .max_column(Some(2))
         .child_item(nwg::GridLayoutItem::new(&app.status_label, 0, 0, 2, 1))
-        .child_item(nwg::GridLayoutItem::new(&app.qr_frame, 0, 1, 2, 4))
-        .child_item(nwg::GridLayoutItem::new(&app.hint_label, 0, 5, 2, 1))
-        .child(0, 6, &app.regenerate_button)
-        .child(1, 6, &app.copy_last_button)
-        .child_item(nwg::GridLayoutItem::new(&app.history_box, 0, 7, 2, 6))
+        // Given an 8-row span (out of 18 total rows) in an 870px-tall
+        // window, this cell comes out well over 300px tall -- comfortable
+        // room for the ~246px QR bitmap `set_qr_image` draws into it
+        // (see the `ImageFrame` comment above for why it needs to be
+        // this generous: the control clips an oversized bitmap instead
+        // of scaling it down).
+        .child_item(nwg::GridLayoutItem::new(&app.qr_frame, 0, 1, 2, 8))
+        .child_item(nwg::GridLayoutItem::new(&app.hint_label, 0, 9, 2, 1))
+        .child(0, 10, &app.regenerate_button)
+        .child(1, 10, &app.copy_last_button)
+        .child_item(nwg::GridLayoutItem::new(&app.clear_history_button, 0, 11, 2, 1))
+        .child_item(nwg::GridLayoutItem::new(&app.history_box, 0, 12, 2, 6))
         .build(&app.layout)
         .expect("failed to build the window layout");
 
     let app = Rc::new(app);
 
-    // Bridge the server's dashboard broadcast (also what the browser
-    // dashboard's WebSocket streams, and what the Linux window uses)
-    // onto the Win32 message loop: the background task just overwrites
+    // Bridge the server's dashboard broadcast (the same live-status
+    // stream the Linux window also renders from) onto the Win32 message
+    // loop: the background task just overwrites
     // the shared latest-snapshot string and pokes `notice` to wake the
     // UI thread, which re-reads it from the `OnNotice` handler below.
     {
@@ -142,7 +169,6 @@ pub fn run(runtime: Arc<tokio::runtime::Runtime>, server: Arc<PairingServer>) {
         *latest.lock().unwrap() = server.dashboard_snapshot();
         let mut updates = server.subscribe_dashboard();
         let notice_sender = app.notice.sender();
-        notice_sender.notice(); // render the initial snapshot right away
         runtime.spawn(async move {
             loop {
                 match updates.recv().await {
@@ -159,6 +185,27 @@ pub fn run(runtime: Arc<tokio::runtime::Runtime>, server: Arc<PairingServer>) {
             }
         });
     }
+
+    // Paint the current (already-fetched-above) state right away, via a
+    // *direct* call rather than through `notice()`: `Notice::sender().
+    // notice()` sends via `SendNotifyMessageW`, which for a same-thread
+    // target -- this is still the UI thread, before `dispatch_thread_events`
+    // below ever starts pumping messages -- dispatches synchronously
+    // through the window procedure immediately, not queued for later. But
+    // `full_bind_event_handler` (which is what actually routes a dispatched
+    // notice to `render_snapshot` via the `OnNotice` match arm) hasn't run
+    // yet at this point in the function, so that first notice had nowhere
+    // to go and was silently dropped -- the window was then stuck showing
+    // its build-time placeholder text forever, since nothing else ever
+    // triggers a first render. Calling `render_snapshot` directly instead
+    // sidesteps the notice/message-loop machinery entirely for this one
+    // render, which needs to happen unconditionally rather than depend on
+    // message-loop timing. Every later update still goes through `notice()`
+    // above, correctly: those really do need to cross from the Tokio
+    // runtime's worker thread onto this one, which `notice()` marshals via
+    // the window's message queue (a genuine cross-thread `SendNotifyMessageW`
+    // there, unlike this same-thread call).
+    render_snapshot(&app);
 
     let weak_app = Rc::downgrade(&app);
     let handler =
@@ -177,6 +224,8 @@ pub fn run(runtime: Arc<tokio::runtime::Runtime>, server: Arc<PairingServer>) {
                         app.server.regenerate_token();
                     } else if &handle == &app.copy_last_button {
                         copy_last_message(&app);
+                    } else if &handle == &app.clear_history_button {
+                        app.server.clear_history();
                     }
                 }
                 nwg::Event::OnNotice => {

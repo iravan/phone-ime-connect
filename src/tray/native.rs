@@ -259,11 +259,8 @@ fn request_accessibility_trust() {
 pub fn run() {
     let runtime = tokio::runtime::Runtime::new().expect("failed to start the async runtime");
 
-    if let Some(url) = runtime.block_on(crate::instance::find_running_instance()) {
-        log::info!(
-            "PhoneInputConnect is already running; its window should already be on screen \
-             (its dashboard is also at {url})."
-        );
+    if runtime.block_on(crate::instance::find_running_instance()) {
+        log::info!("PhoneInputConnect is already running; its window should already be on screen.");
         return;
     }
 
@@ -297,8 +294,8 @@ pub fn run() {
             .expect("failed to start pairing server"),
     );
 
-    log::info!("Dashboard: {}", server.dashboard_url());
-    crate::instance::record_running_instance(&server.dashboard_url());
+    log::info!("Pairing server listening at {}", server.lan_socket_addr());
+    crate::instance::record_running_instance(&server.lan_socket_addr().to_string());
 
     // tray-icon delivers menu/icon events via global callback handlers
     // (fired from OS-owned threads), not through winit -- forward them onto
