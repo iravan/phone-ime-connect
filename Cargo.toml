@@ -30,6 +30,9 @@ gtk4 = { version = "0.11", features = ["v4_6"] }
 async-channel = "2"
 
 [target.'cfg(not(target_os = "linux"))'.dependencies]
-webbrowser = "1"
 tray-icon = "0.19"
 winit = "0.30"
+# Windows/macOS native window: an embedded webview (WKWebView / WebView2)
+# rendering the dashboard, driven in-process via its IPC bridge -- no
+# external browser, no loopback HTTP round-trip.
+wry = "0.56"

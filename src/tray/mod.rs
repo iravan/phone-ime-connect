@@ -8,10 +8,3 @@
 
 #[cfg(not(target_os = "linux"))]
 pub mod native;
-
-/// Actions the tray menu can trigger.
-pub struct TrayCallbacks {
-    pub open_dashboard: Box<dyn Fn() + Send + Sync>,
-    pub regenerate: Box<dyn Fn() + Send + Sync>,
-    pub quit: Box<dyn Fn() + Send + Sync>,
-}
