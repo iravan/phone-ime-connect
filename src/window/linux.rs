@@ -19,14 +19,41 @@ use base64::Engine;
 use gtk4::glib;
 use gtk4::prelude::*;
 use gtk4::{
-    Application, ApplicationWindow, Box as GtkBox, Button, Label, Orientation, Picture,
-    ScrolledWindow,
+    Application, ApplicationWindow, Box as GtkBox, Button, CssProvider, Label, Orientation,
+    Picture, ScrolledWindow, Separator,
 };
 use tokio::sync::broadcast;
 
 use crate::server::PairingServer;
 
 const APP_ID: &str = "org.phoneinputconnect.PhoneInputConnect";
+
+/// Custom styling layered on top of whatever GTK theme is active. Kept to
+/// properties supported since GTK 4.6 (this project's floor -- see the
+/// README) and to theme-provided named colors (`@theme_*`, `@borders`)
+/// rather than hardcoded hex values, so it still looks native across
+/// different GTK themes and light/dark variants. The QR card is the one
+/// deliberate exception: it's pinned to white regardless of theme, since
+/// the QR PNG itself assumes a light quiet zone for reliable scanning.
+const STYLE: &str = "
+    .status-dot {
+        min-width: 10px; min-height: 10px; border-radius: 50%;
+        background-color: @theme_fg_color; opacity: 0.35;
+    }
+    .status-dot.connected { background-color: #2fa84f; opacity: 1; }
+    .status-dot.waiting { background-color: @theme_fg_color; opacity: 0.35; }
+    .status-dot.reconnecting { background-color: #d99a2b; opacity: 1; }
+    .status-text { font-weight: 600; font-size: 1.05em; }
+    .qr-card {
+        background-color: #ffffff; border-radius: 12px; padding: 16px;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+    }
+    .section-header { font-weight: 600; opacity: 0.7; }
+    .msg-bubble {
+        background-color: @theme_base_color; border: 1px solid @borders;
+        border-radius: 10px; padding: 6px 10px;
+    }
+";
 
 /// Runs the GTK main loop on the calling thread until the window is
 /// closed. `runtime` is shared (not consumed) so the caller can keep
@@ -44,8 +71,35 @@ pub fn run(runtime: Arc<tokio::runtime::Runtime>, server: Arc<PairingServer>) {
 }
 
 fn build_window(app: &Application, runtime: &tokio::runtime::Runtime, server: &Arc<PairingServer>) {
-    let status_label = Label::new(Some("Connecting…"));
+    let s = crate::i18n::strings();
+
+    let provider = CssProvider::new();
+    provider.load_from_data(STYLE);
+    gtk4::style_context_add_provider_for_display(
+        &gtk4::gdk::Display::default().expect("no GDK display available"),
+        &provider,
+        gtk4::STYLE_PROVIDER_PRIORITY_APPLICATION,
+    );
+
+    let status_dot = GtkBox::new(Orientation::Horizontal, 0);
+    status_dot.add_css_class("status-dot");
+    status_dot.add_css_class("waiting");
+    // Without a fixed size, a horizontal box's default "fill" valign
+    // stretches it to the row's full height (set by the status label's
+    // font), turning the circle into a pill/oval.
+    status_dot.set_size_request(10, 10);
+    status_dot.set_valign(gtk4::Align::Center);
+    status_dot.set_halign(gtk4::Align::Center);
+
+    let status_label = Label::new(Some(s.connecting));
     status_label.set_wrap(true);
+    status_label.set_xalign(0.0);
+    status_label.add_css_class("status-text");
+
+    let status_row = GtkBox::new(Orientation::Horizontal, 8);
+    status_row.set_valign(gtk4::Align::Center);
+    status_row.append(&status_dot);
+    status_row.append(&status_label);
 
     let qr_picture = Picture::new();
     qr_picture.set_can_shrink(true);
@@ -55,12 +109,20 @@ fn build_window(app: &Application, runtime: &tokio::runtime::Runtime, server: &A
     // e.g. Ubuntu 22.04/Zorin OS 17.
     #[allow(deprecated)]
     qr_picture.set_keep_aspect_ratio(true);
-    qr_picture.set_size_request(240, 240);
+    qr_picture.set_size_request(220, 220);
 
-    let hint_label = Label::new(Some("Scan with a phone on the same network."));
+    let qr_card = GtkBox::new(Orientation::Vertical, 0);
+    qr_card.set_halign(gtk4::Align::Center);
+    qr_card.add_css_class("qr-card");
+    qr_card.append(&qr_picture);
+
+    let hint_label = Label::new(Some(s.hint_scan));
     hint_label.set_wrap(true);
+    hint_label.set_justify(gtk4::Justification::Center);
+    hint_label.add_css_class("dim-label");
 
-    let regenerate_button = Button::with_label("New code");
+    let regenerate_button = Button::with_label(s.button_new_code);
+    regenerate_button.add_css_class("suggested-action");
     {
         let server = server.clone();
         regenerate_button.connect_clicked(move |_| {
@@ -69,9 +131,11 @@ fn build_window(app: &Application, runtime: &tokio::runtime::Runtime, server: &A
     }
 
     let button_row = GtkBox::new(Orientation::Horizontal, 6);
+    button_row.set_halign(gtk4::Align::Center);
     button_row.append(&regenerate_button);
 
-    let clear_history_button = Button::with_label("Clear history");
+    let clear_history_button = Button::with_label(s.button_clear_history);
+    clear_history_button.add_css_class("destructive-action");
     {
         let server = server.clone();
         clear_history_button.connect_clicked(move |_| {
@@ -79,6 +143,10 @@ fn build_window(app: &Application, runtime: &tokio::runtime::Runtime, server: &A
         });
     }
     button_row.append(&clear_history_button);
+
+    let history_header = Label::new(Some(s.history_header));
+    history_header.set_xalign(0.0);
+    history_header.add_css_class("section-header");
 
     let history_box = GtkBox::new(Orientation::Vertical, 6);
     let history_scroller = ScrolledWindow::builder()
@@ -91,17 +159,19 @@ fn build_window(app: &Application, runtime: &tokio::runtime::Runtime, server: &A
     root.set_margin_bottom(16);
     root.set_margin_start(16);
     root.set_margin_end(16);
-    root.append(&status_label);
-    root.append(&qr_picture);
+    root.append(&status_row);
+    root.append(&qr_card);
     root.append(&hint_label);
     root.append(&button_row);
+    root.append(&Separator::new(Orientation::Horizontal));
+    root.append(&history_header);
     root.append(&history_scroller);
 
     let window = ApplicationWindow::builder()
         .application(app)
         .title("PhoneInputConnect")
-        .default_width(360)
-        .default_height(560)
+        .default_width(380)
+        .default_height(580)
         .child(&root)
         .build();
 
@@ -130,7 +200,15 @@ fn build_window(app: &Application, runtime: &tokio::runtime::Runtime, server: &A
     }
     glib::spawn_future_local(async move {
         while let Ok(json) = rx.recv().await {
-            apply_snapshot(&status_label, &qr_picture, &hint_label, &history_box, &json);
+            apply_snapshot(
+                &status_dot,
+                &status_label,
+                &qr_card,
+                &qr_picture,
+                &hint_label,
+                &history_box,
+                &json,
+            );
         }
     });
 }
@@ -159,13 +237,28 @@ async fn forward_updates(
     }
 }
 
+/// Swaps `dot`'s state class (`connected`/`waiting`/`reconnecting`) for the
+/// one named -- the CSS in `STYLE` gives each its own dot color.
+fn set_status_dot_state(dot: &GtkBox, state: &str) {
+    for other in ["connected", "waiting", "reconnecting"] {
+        if other == state {
+            dot.add_css_class(other);
+        } else {
+            dot.remove_css_class(other);
+        }
+    }
+}
+
 fn apply_snapshot(
+    status_dot: &GtkBox,
     status_label: &Label,
+    qr_card: &GtkBox,
     qr_picture: &Picture,
     hint_label: &Label,
     history_box: &GtkBox,
     json: &str,
 ) {
+    let s = crate::i18n::strings();
     let snapshot: serde_json::Value = match serde_json::from_str(json) {
         Ok(v) => v,
         Err(_) => return,
@@ -181,20 +274,20 @@ fn apply_snapshot(
         .unwrap_or(false);
 
     if connected {
-        status_label.set_label("Phone connected");
-        hint_label.set_label("Messages you send from the phone appear below.");
-        qr_picture.set_visible(false);
+        set_status_dot_state(status_dot, "connected");
+        status_label.set_label(s.status_connected);
+        hint_label.set_label(s.hint_connected);
+        qr_card.set_visible(false);
     } else {
-        qr_picture.set_visible(true);
+        qr_card.set_visible(true);
         if reconnecting {
-            status_label.set_label("Phone disconnected — waiting to reconnect…");
-            hint_label.set_label(
-                "The same code still works for a bit in case it reconnects on its own; \
-                 scan again if it doesn't.",
-            );
+            set_status_dot_state(status_dot, "reconnecting");
+            status_label.set_label(s.status_reconnecting);
+            hint_label.set_label(s.hint_reconnecting);
         } else {
-            status_label.set_label("Waiting for a phone to scan the code below");
-            hint_label.set_label("Scan with a phone on the same network.");
+            set_status_dot_state(status_dot, "waiting");
+            status_label.set_label(s.status_waiting);
+            hint_label.set_label(s.hint_scan);
         }
         set_qr_image(qr_picture, &snapshot);
     }
@@ -202,21 +295,34 @@ fn apply_snapshot(
     while let Some(child) = history_box.first_child() {
         history_box.remove(&child);
     }
-    if let Some(items) = snapshot.get("history").and_then(|v| v.as_array()) {
-        for item in items {
-            if let Some(text) = item.get("text").and_then(|v| v.as_str()) {
-                history_box.append(&build_history_row(text));
+    let items = snapshot
+        .get("history")
+        .and_then(|v| v.as_array())
+        .filter(|items| !items.is_empty());
+    match items {
+        Some(items) => {
+            for item in items {
+                if let Some(text) = item.get("text").and_then(|v| v.as_str()) {
+                    history_box.append(&build_history_row(text));
+                }
             }
+        }
+        None => {
+            let placeholder = Label::new(Some(s.history_empty));
+            placeholder.add_css_class("dim-label");
+            placeholder.set_margin_top(12);
+            history_box.append(&placeholder);
         }
     }
 }
 
-/// One history entry: the message text, plus a copy-to-clipboard button
-/// that's only shown while the pointer is over the row -- kept out of the
-/// way otherwise, since it's a rarely-needed convenience, not a primary
-/// action.
+/// One history entry, styled like a chat bubble, plus a copy-to-clipboard
+/// button that's only shown while the pointer is over the row -- kept out
+/// of the way otherwise, since it's a rarely-needed convenience, not a
+/// primary action.
 fn build_history_row(text: &str) -> GtkBox {
     let row = GtkBox::new(Orientation::Horizontal, 6);
+    row.add_css_class("msg-bubble");
 
     let label = Label::new(Some(text));
     label.set_xalign(0.0);
@@ -224,7 +330,7 @@ fn build_history_row(text: &str) -> GtkBox {
     label.set_hexpand(true);
 
     let copy_button = Button::from_icon_name("edit-copy-symbolic");
-    copy_button.set_tooltip_text(Some("Copy to clipboard"));
+    copy_button.set_tooltip_text(Some(crate::i18n::strings().copy_to_clipboard_tooltip));
     copy_button.add_css_class("flat");
     copy_button.set_visible(false);
     {

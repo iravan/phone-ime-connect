@@ -87,29 +87,131 @@
     font-weight: 600; cursor: pointer;
   }
   #send:disabled { opacity: 0.5; cursor: not-allowed; }
+  #composer { position: relative; }
+  #clear-all {
+    position: absolute; bottom: 100%; left: 50%;
+    transform: translate(-50%, -10px);
+    display: flex; align-items: center; gap: 0.35rem;
+    border: 1px solid var(--bubble-border); border-radius: 999px;
+    padding: 0.4rem 0.9rem; background: var(--bubble-bg); color: var(--muted);
+    font-size: 0.8rem; font-weight: 600; cursor: pointer;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
+    white-space: nowrap;
+  }
+  #clear-all svg { width: 0.85rem; height: 0.85rem; flex-shrink: 0; }
 </style>
 </head>
 <body>
 <header>
   <span id="status-dot"></span>
-  <h1>Desktop Input</h1>
+  <h1 id="page-title">Desktop Input</h1>
   <span id="status-text">Connecting…</span>
 </header>
 <div id="history"></div>
 <form id="composer" autocomplete="off">
+  <button id="clear-all" type="button">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+         stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+    </svg>
+    <span id="clear-all-label">Clear all</span>
+  </button>
   <input id="text" type="text" placeholder="Type a message…" maxlength="2000" autocomplete="off">
   <button id="send" type="submit">Send</button>
 </form>
 <script>
 (function () {
   'use strict';
+
+  // English and Traditional Chinese only, so far -- chosen from the
+  // phone's own browser language, independent of the desktop app's OS
+  // language (they're different devices, so there's no reason to tie the
+  // two together; see `src/i18n.rs` for the desktop side).
+  var EN = {
+    title: 'Desktop Input',
+    connecting: 'Connecting…',
+    connected: 'Connected',
+    disconnectedReconnecting: 'Disconnected — reconnecting…',
+    disconnectedGiveUp: 'Disconnected — ask the desktop for a new code',
+    connectionError: 'Connection error',
+    placeholder: 'Type a message…',
+    send: 'Send',
+    clearAll: 'Clear all',
+    tickSending: 'sending…',
+    tickSent: 'sent',
+    tickDelivered: 'delivered',
+    errorFallback: 'Error',
+    errors: {
+      already_connected: 'Another phone is already connected.',
+      new_code_generated: 'Disconnected: a new code was generated.',
+      malformed: 'Malformed message.',
+      unknown_type: 'Unknown message type.',
+      empty_message: 'Empty message.',
+      too_long: 'Message too long.'
+    }
+  };
+  var ZH_HANT = {
+    title: '桌面輸入',
+    connecting: '連線中…',
+    connected: '已連線',
+    disconnectedReconnecting: '已中斷連線 — 正在重新連線…',
+    disconnectedGiveUp: '已中斷連線 — 請向桌面端索取新代碼',
+    connectionError: '連線錯誤',
+    placeholder: '輸入訊息…',
+    send: '傳送',
+    clearAll: '全部清除',
+    tickSending: '傳送中…',
+    tickSent: '已傳送',
+    tickDelivered: '已送達',
+    errorFallback: '發生錯誤',
+    errors: {
+      already_connected: '已有其他手機連線。',
+      new_code_generated: '已中斷連線：已產生新代碼。',
+      malformed: '訊息格式錯誤。',
+      unknown_type: '未知的訊息類型。',
+      empty_message: '訊息不可為空。',
+      too_long: '訊息過長。'
+    }
+  };
+
+  function detectLang() {
+    var tags = (navigator.languages && navigator.languages.length)
+      ? navigator.languages
+      : [navigator.language || 'en'];
+    for (var i = 0; i < tags.length; i++) {
+      var tag = String(tags[i]).toLowerCase();
+      if (/^zh-(tw|hk|mo)\b/.test(tag) || tag.indexOf('hant') !== -1) {
+        return ZH_HANT;
+      }
+      if (tag.indexOf('zh') === 0) {
+        // Simplified Chinese and unqualified "zh" both fall back to
+        // English -- only Traditional Chinese is supported so far.
+        return EN;
+      }
+    }
+    return EN;
+  }
+  var T = detectLang();
+  document.documentElement.lang = (T === ZH_HANT) ? 'zh-Hant' : 'en';
+  document.title = T.title;
+
   var HISTORY_MAX = 10;
   var historyEl = document.getElementById('history');
   var statusDot = document.getElementById('status-dot');
   var statusText = document.getElementById('status-text');
+  var pageTitle = document.getElementById('page-title');
   var form = document.getElementById('composer');
   var input = document.getElementById('text');
   var sendBtn = document.getElementById('send');
+  var clearAllBtn = document.getElementById('clear-all');
+  var clearAllLabel = document.getElementById('clear-all-label');
+
+  pageTitle.textContent = T.title;
+  statusText.textContent = T.connecting;
+  input.placeholder = T.placeholder;
+  sendBtn.textContent = T.send;
+  clearAllLabel.textContent = T.clearAll;
 
   function trimHistory() {
     while (historyEl.children.length > HISTORY_MAX) {
@@ -157,7 +259,7 @@
 
     ws.addEventListener('open', function () {
       reconnectDeadline = null;
-      setStatus('ok', 'Connected');
+      setStatus('ok', T.connected);
       sendBtn.disabled = false;
       input.disabled = false;
     });
@@ -169,15 +271,15 @@
       sendBtn.disabled = true;
       input.disabled = true;
       if (Date.now() < reconnectDeadline) {
-        setStatus('warn', 'Disconnected — reconnecting…');
+        setStatus('warn', T.disconnectedReconnecting);
         setTimeout(connect, RECONNECT_RETRY_MS);
       } else {
-        setStatus('err', 'Disconnected — ask the desktop for a new code');
+        setStatus('err', T.disconnectedGiveUp);
       }
     });
 
     ws.addEventListener('error', function () {
-      setStatus('err', 'Connection error');
+      setStatus('err', T.connectionError);
     });
 
     ws.addEventListener('message', function (event) {
@@ -189,16 +291,17 @@
       }
       if (msg.type === 'history') {
         (msg.items || []).forEach(function (item) {
-          addBubble('mine', item.text, 'sent');
+          addBubble('mine', item.text, T.tickSent);
         });
       } else if (msg.type === 'ack') {
         if (pending.length) {
           var bubble = pending.shift();
           var tick = bubble.querySelector('.tick');
-          if (tick) { tick.textContent = 'delivered'; }
+          if (tick) { tick.textContent = T.tickDelivered; }
         }
       } else if (msg.type === 'error') {
-        addBubble('system', msg.message || 'Error');
+        var localized = msg.code && T.errors[msg.code];
+        addBubble('system', localized || msg.message || T.errorFallback);
       }
     });
   }
@@ -210,9 +313,22 @@
     if (!text || !text.trim()) { return; }
     if (ws.readyState !== WebSocket.OPEN) { return; }
     ws.send(JSON.stringify({ type: 'message', text: text }));
-    var bubble = addBubble('mine', text, 'sending…');
+    var bubble = addBubble('mine', text, T.tickSending);
     pending.push(bubble);
     input.value = '';
+    input.focus();
+    // Tapping the Send button itself steals focus, and some mobile
+    // browsers only reliably reopen the on-screen keyboard on a focus()
+    // call in the next frame rather than synchronously in this handler.
+    requestAnimationFrame(function () { input.focus(); });
+  });
+
+  clearAllBtn.addEventListener('click', function () {
+    historyEl.textContent = '';
+    pending.length = 0;
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'clear' }));
+    }
     input.focus();
   });
 })();

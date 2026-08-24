@@ -1,3 +1,4 @@
+mod i18n;
 mod injector;
 mod instance;
 mod lan;
