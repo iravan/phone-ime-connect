@@ -9,9 +9,10 @@
 #[cfg(not(target_os = "linux"))]
 pub mod native;
 
-/// Actions the tray menu can trigger.
-pub struct TrayCallbacks {
-    pub open_dashboard: Box<dyn Fn() + Send + Sync>,
-    pub regenerate: Box<dyn Fn() + Send + Sync>,
-    pub quit: Box<dyn Fn() + Send + Sync>,
-}
+// The window's dashboard content: native AppKit widgets on macOS, an
+// embedded webview elsewhere (Windows). Both expose the same `Content` API
+// that `native.rs` drives.
+#[cfg(target_os = "macos")]
+mod appkit_dashboard;
+#[cfg(all(not(target_os = "linux"), not(target_os = "macos")))]
+mod webview_dashboard;

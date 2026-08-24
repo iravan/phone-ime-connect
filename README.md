@@ -7,12 +7,15 @@ it with your phone (same Wi-Fi network, no app install), type a message in
 the page that opens, and it's instantly typed into whatever window has
 focus on your desktop -- as if you'd typed it yourself.
 
-**Platform status**: on Linux, the QR code/status/history live in a native
-window (see `window.rs`) that opens on launch -- closing it quits the app
-entirely, including the pairing server. Windows and macOS don't have that
-yet and fall back to a tray icon plus a browser tab for the same
-information (see `tray/native.rs`); giving them an equivalent native
-window is follow-up work.
+**Platform status**: every platform now opens a native window showing the
+QR code/status/history on launch, hosted in a `winit` window with a
+tray/menu-bar icon (see `tray/native.rs`). On Linux it's a GTK4 window
+(see `window.rs`); on macOS the dashboard is drawn with native AppKit
+widgets (see `tray/appkit_dashboard.rs`); on Windows it's an embedded
+WebView2 (see `tray/webview_dashboard.rs`) until a native Win32 dashboard
+is written. Closing the Linux window quits the app; on Windows/macOS
+closing just hides the window (the tray icon's "Show window" brings it
+back, "Quit" exits).
 
 ## Why
 
@@ -24,11 +27,13 @@ account, no cloud service, and no app to install.
 
 ## How it works
 
-1. Launch PhoneInputConnect. On Linux, a window showing a QR code opens directly.
-   On Windows/macOS (no native window yet), it instead opens a
-   **dashboard** page in your default browser
-   (`https://127.0.0.1:<port>/dashboard`) with the same QR code, plus a
-   tray/menu bar icon.
+1. Launch PhoneInputConnect. A window showing a QR code opens directly --
+   a GTK4 window on Linux, native AppKit widgets on macOS, an embedded
+   webview on Windows (all three also get a tray/menu-bar icon on
+   Windows/macOS). The same QR code/status/history is
+   still reachable as a browser **dashboard** page at
+   `https://127.0.0.1:<port>/dashboard` if you want it in a real browser
+   tab.
 2. Scan the QR code with your phone's camera. It opens a chat-style page
    served directly from your computer over your LAN.
 3. Type a message on your phone and hit send. It's echoed back to your
@@ -47,12 +52,11 @@ brief Wi-Fi blip), the same QR code/URL keeps working for about 45 seconds
 in case it reconnects on its own -- no need to re-scan for a short hiccup.
 Past that window, the code is invalidated for good and needs a fresh scan.
 
-On Windows/macOS, if you lose the dashboard tab and there's no tray icon
-to get it back, just launch PhoneInputConnect again -- it detects the
-already-running instance and reopens its dashboard instead of starting a
-second one. (On Linux the window itself *is* the app, so there's nothing
-to lose track of; relaunching while it's already running just logs that
-it's already up rather than trying to bring the existing window forward.)
+The window itself *is* the app now on every platform, so there's nothing
+to lose track of. Relaunching while an instance is already running just
+logs that it's already up rather than starting a second one or trying to
+bring the existing window forward. (On Windows/macOS the tray icon's
+"Show window" brings the window back if you've closed/hidden it.)
 
 ## Building and running
 
@@ -113,10 +117,38 @@ is baked into the installed entry as-is.
 
 ### Windows / macOS
 
-Uses [`tray-icon`](https://docs.rs/tray-icon) and
-[`winit`](https://docs.rs/winit) for the tray/menu-bar icon and its event
-loop. No extra system packages are required. `cargo run` builds and runs
-as normal.
+Uses [`winit`](https://docs.rs/winit) for the window and event loop and
+[`tray-icon`](https://docs.rs/tray-icon) for the tray/menu-bar icon. On
+macOS the dashboard inside that window is built from native AppKit
+widgets via [`objc2`](https://docs.rs/objc2) (`NSStackView` of
+`NSTextField`/`NSImageView`/`NSButton`); on Windows it's an embedded
+WebView2 via [`wry`](https://docs.rs/wry) (bundled with Windows 10+),
+pending a native Win32 dashboard. Either way no extra system packages are
+required -- `cargo run` builds and runs as normal.
+
+**macOS -- build a double-clickable app**: `cargo run` works for
+development, but to get a normal app users can launch from Finder/Dock
+(no terminal), build the bundle:
+
+```sh
+./scripts/build-macos-app.sh   # -> target/release/PhoneInputConnect.app
+```
+
+Move `PhoneInputConnect.app` to `/Applications` (or run it in place).
+Delivering messages into other apps simulates a Cmd+V keystroke, which
+macOS gates behind **Accessibility** permission: the first launch pops a
+"PhoneInputConnect would like to control this computer" prompt -- approve
+it once (System Settings > Privacy & Security > Accessibility) and it
+sticks to the app. Running the bare binary instead (e.g. `cargo run` or
+`./target/.../phone-input-connect`) can't hold that grant on its own; it
+borrows the *launching terminal's* Accessibility permission, so the
+packaged app is the supported way to run it.
+
+**Picking the LAN address**: the QR must encode an address the phone can
+actually reach. The app prefers a physical Wi-Fi/Ethernet interface and
+skips VPN/tunnel interfaces automatically, but if it still guesses wrong
+(unusual multi-interface setups), set `PHONE_INPUT_CONNECT_LAN_IP` to the
+right IPv4 address to override detection.
 
 ## Security
 
@@ -148,11 +180,14 @@ network, where other devices are untrusted:
   dashboard page (needs no token), reachable only from `127.0.0.1` -- a
   second, separate listening socket bound to loopback only, with every
   request additionally checked against the connecting socket's own
-  remote address. Windows/macOS currently rely on this (opened in your
-  browser); on Linux, the native window gets the same live updates
-  directly in-process instead, but the page is still there at
-  `https://127.0.0.1:<port>/dashboard` if you ever want it -- e.g. to
-  check status from another browser tab on the same machine.
+  remote address. Every platform's native window gets these same live
+  updates directly in-process instead of over this socket (the Linux GTK
+  and macOS AppKit widgets are updated straight from the snapshot stream;
+  the Windows webview is fed via its IPC bridge -- none of them make a
+  network connection, and the self-signed cert couldn't be clicked
+  through inside an embedded webview anyway), but the page is still there
+  at `https://127.0.0.1:<port>/dashboard` if you ever want it in a real
+  browser tab on the same machine.
 - Nothing is persisted to disk. Chat history is an in-memory ring buffer
   (the last 10 messages) that vanishes the moment the app stops.
 - Each message is placed on the system clipboard just long enough to paste
@@ -189,7 +224,10 @@ network, where other devices are untrusted:
   Unicode keysym trick that most IMEs -- built to interpret real keystrokes
   as composition input, not to accept a pre-composed character outright --
   would silently drop or mangle. Pasting sidesteps that entirely.
-- **Windows/macOS don't have the native window yet**: they still use the
-  tray icon + browser dashboard from before (`tray/native.rs`), including
-  whatever tray-icon-visibility quirks that platform has. This is a
-  temporary gap, not an intended long-term difference.
+- **Windows/macOS native window**: a `winit` window plus a tray/menu-bar
+  icon (`tray/native.rs`), with the dashboard drawn by native AppKit
+  widgets on macOS and an embedded WebView2 on Windows. On macOS the app
+  runs under the "Regular" activation policy (a Dock icon), so it behaves
+  like an ordinary windowed app; closing the window hides it and leaves
+  the app in the menu bar rather than quitting. Any tray-icon-visibility
+  quirks of the platform still apply.
