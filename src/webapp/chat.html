@@ -320,7 +320,13 @@
     // Tapping the Send button itself steals focus, and some mobile
     // browsers only reliably reopen the on-screen keyboard on a focus()
     // call in the next frame rather than synchronously in this handler.
-    requestAnimationFrame(function () { input.focus(); });
+    // Only retry if the first call didn't already land -- refocusing an
+    // already-focused input still re-triggers the keyboard's hide/show
+    // animation on some browsers, which briefly eats taps and reads as
+    // the whole page having locked up.
+    requestAnimationFrame(function () {
+      if (document.activeElement !== input) { input.focus(); }
+    });
   });
 
   clearAllBtn.addEventListener('click', function () {
