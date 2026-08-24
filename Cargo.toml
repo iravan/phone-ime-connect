@@ -1,7 +1,9 @@
 [package]
 name = "phone-input-connect"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
+license = "GPL-3.0-or-later"
+description = "Type on your desktop by texting it from your phone"
 
 [dependencies]
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time", "sync", "signal"] }
@@ -36,3 +38,20 @@ native-windows-gui = "1.0"
 webbrowser = "1"
 tray-icon = "0.19"
 winit = "0.30"
+
+[package.metadata.deb]
+maintainer = "PhoneInputConnect contributors"
+copyright = "2026, PhoneInputConnect contributors"
+license-file = ["LICENSE", "4"]
+extended-description = """\
+Type on your desktop by texting it from your phone: scan a QR code \
+to pair over your LAN, and whatever you send gets pasted into \
+whatever window has focus on your desktop."""
+depends = "$auto"
+section = "utils"
+priority = "optional"
+assets = [
+    ["target/release/phone-input-connect", "usr/bin/", "755"],
+    ["packaging/linux/org.phoneinputconnect.PhoneInputConnect.desktop", "usr/share/applications/", "644"],
+    ["assets/icon-256.png", "usr/share/icons/hicolor/256x256/apps/phone-input-connect.png", "644"],
+]

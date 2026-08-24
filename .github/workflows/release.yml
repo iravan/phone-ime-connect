@@ -1,0 +1,49 @@
+name: Release
+
+# Builds the .deb on an actual x86_64 Ubuntu runner -- the dev machine
+# this project is otherwise built on is aarch64, which can't reliably
+# cross-compile a GTK4/libxdo-linked binary for x86_64 (no cross-sysroot
+# for those system libraries). Pushing a `v*` tag publishes the result
+# to a GitHub Release; workflow_dispatch just builds it as a downloadable
+# artifact, for testing without cutting a release.
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-deb:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: sudo apt-get update && sudo apt-get install -y libgtk-4-dev libxdo-dev
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-deb
+        run: cargo install cargo-deb --locked
+
+      - name: Build .deb
+        run: cargo deb
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: phone-input-connect-deb
+          path: target/debian/*.deb
+
+      - name: Publish to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" target/debian/*.deb \
+            --title "${{ github.ref_name }}" --generate-notes \
+          || gh release upload "${{ github.ref_name }}" target/debian/*.deb --clobber

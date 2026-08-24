@@ -115,6 +115,16 @@ just run the binary directly -- GNOME matches by application ID either
 way. Re-run the script if you move the checkout, since the binary's path
 is baked into the installed entry as-is.
 
+**A `.deb` package**, with the icon/desktop entry handled properly (an
+installed icon theme entry rather than an absolute path, standard
+`/usr/bin` install), is built automatically for x86_64 on every tagged
+release -- see [Releases](../../releases) for a prebuilt one, or run
+`cargo install cargo-deb && cargo deb` yourself. That needs to run on an
+actual x86_64 machine: this project is developed on aarch64, which can't
+reliably cross-compile a GTK4/libxdo-linked binary for x86_64 (see
+`.github/workflows/release.yml`, which builds it on a real x86_64 GitHub
+Actions runner for exactly that reason).
+
 ### Windows
 
 The window is a native [`native-windows-gui`](https://docs.rs/native-windows-gui)
