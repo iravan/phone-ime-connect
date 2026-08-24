@@ -18,7 +18,7 @@ use base64::Engine;
 use gtk4::glib;
 use gtk4::prelude::*;
 use gtk4::{
-    Application, ApplicationWindow, Box as GtkBox, Button, ContentFit, Label, Orientation, Picture,
+    Application, ApplicationWindow, Box as GtkBox, Button, Label, Orientation, Picture,
     ScrolledWindow,
 };
 use tokio::sync::broadcast;
@@ -48,7 +48,12 @@ fn build_window(app: &Application, runtime: &tokio::runtime::Runtime, server: &A
 
     let qr_picture = Picture::new();
     qr_picture.set_can_shrink(true);
-    qr_picture.set_content_fit(ContentFit::Contain);
+    // `ContentFit`/`set_content_fit` (the non-deprecated replacement) needs
+    // GTK 4.8; staying on this deprecated-since-4.8-but-still-functional
+    // call keeps the build working against GTK 4.6, the system version on
+    // e.g. Ubuntu 22.04/Zorin OS 17.
+    #[allow(deprecated)]
+    qr_picture.set_keep_aspect_ratio(true);
     qr_picture.set_size_request(240, 240);
 
     let hint_label = Label::new(Some("Scan with a phone on the same network."));

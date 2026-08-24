@@ -60,15 +60,24 @@ Requires a recent Rust toolchain (`cargo build`/`cargo run`).
 
 ### Linux
 
-The window is a native [GTK4](https://docs.rs/gtk4) UI, which needs GTK4's
-development packages to build:
+The window is a native [GTK4](https://docs.rs/gtk4) UI (GTK 4.6 or newer),
+which needs GTK4's development packages to build:
 
 ```sh
 # Fedora
 sudo dnf install gtk4-devel
-# Debian/Ubuntu
+# Debian/Ubuntu (including derivatives like Zorin OS)
 sudo apt install libgtk-4-dev
 ```
+
+Targeting Zorin OS 17 (Ubuntu 22.04 base, GNOME-based Core/Pro edition)
+specifically: its system GTK4 is version 4.6, so the code deliberately
+stays within GTK 4.6 APIs rather than something newer, even though this
+repo is otherwise built and tested against a much newer GTK4 -- not yet
+confirmed working on actual Zorin hardware, just built to be compatible
+with what it ships. On an *older* base than that (Zorin OS 16 / Ubuntu
+20.04 or earlier), `libgtk-4-dev` may not be in the default repos at all,
+since GTK4 was still quite new then; you'd need a PPA or a newer release.
 
 Typing uses [`enigo`](https://docs.rs/enigo) (for the paste keystroke),
 which on X11 links against `libxdo`, so that needs to be installed too:
@@ -155,13 +164,19 @@ network, where other devices are untrusted:
   policy, not something PhoneChat can work around. If the paste keystroke
   doesn't land, the message is still sitting on the clipboard -- a manual
   Ctrl+V/Cmd+V works as a fallback.
-- **First keystroke on GNOME/Mutter**: newer Mutter versions gate
-  synthetic input -- including the legacy XTest-via-XWayland path
-  `enigo` uses here -- behind the `RemoteDesktop` portal's consent
-  dialog, even in an otherwise-X11/Xwayland session. Expect a one-time
-  "allow remote desktop interaction"-style prompt the first time
-  PhoneChat actually sends a keystroke; typing works normally after
-  it's granted.
+- **First keystroke on GNOME/Mutter (Wayland sessions)**: newer Mutter
+  versions gate synthetic input -- including the legacy
+  XTest-via-XWayland path `enigo` uses here -- behind the
+  `RemoteDesktop` portal's consent dialog, even in an otherwise-X11/
+  Xwayland session. Expect a one-time "allow remote desktop
+  interaction"-style prompt the first time PhoneChat actually sends a
+  keystroke; typing works normally after it's granted. Distributions
+  that default to a plain Xorg session (no Wayland/Mutter involved at
+  all) shouldn't see this prompt in the first place -- Zorin OS has
+  historically defaulted to Xorg for broader hardware/driver
+  compatibility, for instance, though this isn't independently
+  confirmed for the exact version you're running; check with
+  `echo $XDG_SESSION_TYPE`.
 - Delivery works by placing the message on the clipboard and simulating a
   paste, specifically *because* simulating individual keypresses (the
   previous approach, via `libxdo` on Linux) only has keycodes for the
