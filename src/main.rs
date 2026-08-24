@@ -32,11 +32,8 @@ fn run_with_native_window(
     let runtime =
         Arc::new(tokio::runtime::Runtime::new().expect("failed to start the async runtime"));
 
-    if let Some(url) = runtime.block_on(instance::find_running_instance()) {
-        log::info!(
-            "PhoneInputConnect is already running; its dashboard is at {url} if you need it, \
-             but its window should already be on screen."
-        );
+    if runtime.block_on(instance::find_running_instance()) {
+        log::info!("PhoneInputConnect is already running; its window should already be on screen.");
         return;
     }
 
@@ -48,8 +45,8 @@ fn run_with_native_window(
             .expect("failed to start pairing server"),
     );
 
-    log::info!("Dashboard: {}", server.dashboard_url());
-    instance::record_running_instance(&server.dashboard_url());
+    log::info!("Pairing server listening at {}", server.lan_socket_addr());
+    instance::record_running_instance(&server.lan_socket_addr().to_string());
 
     // Blocks until the window is closed.
     window_run(runtime.clone(), server.clone());

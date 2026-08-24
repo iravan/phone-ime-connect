@@ -1,16 +1,17 @@
 //! The primary UI on Linux: a native GTK4 window showing the QR code,
-//! connection status, and message history, with a "New code" button --
-//! replacing the browser-tab-based dashboard (`server.rs`'s
-//! `/dashboard` route still exists and still works if opened by hand, but
-//! nothing points at it by default anymore).
+//! connection status, and message history, with a "New code" button.
+//! There's no browser-based fallback any more (`server.rs` used to also
+//! serve a `/dashboard` page on 127.0.0.1 for that; it's gone now that
+//! every platform has its own native window).
 //!
 //! Closing this window quits the whole application, including the
 //! pairing server -- it's the only UI now, not a tray-minimizable
 //! convenience, so there's nothing meaningful left running without it.
 //!
-//! Windows has its own equivalent in `window/windows.rs`; macOS doesn't
-//! yet and still falls back to a tray icon plus a browser tab
-//! (`tray/native.rs`).
+//! Windows has its own equivalent in `window/windows.rs`; macOS has its
+//! own native window too, drawn with AppKit widgets in a tray/menu-bar
+//! app instead of a plain window (`tray/native.rs`,
+//! `tray/appkit_dashboard.rs`).
 
 use std::sync::Arc;
 
@@ -67,6 +68,18 @@ fn build_window(app: &Application, runtime: &tokio::runtime::Runtime, server: &A
         });
     }
 
+    let button_row = GtkBox::new(Orientation::Horizontal, 6);
+    button_row.append(&regenerate_button);
+
+    let clear_history_button = Button::with_label("Clear history");
+    {
+        let server = server.clone();
+        clear_history_button.connect_clicked(move |_| {
+            server.clear_history();
+        });
+    }
+    button_row.append(&clear_history_button);
+
     let history_box = GtkBox::new(Orientation::Vertical, 6);
     let history_scroller = ScrolledWindow::builder()
         .child(&history_box)
@@ -81,7 +94,7 @@ fn build_window(app: &Application, runtime: &tokio::runtime::Runtime, server: &A
     root.append(&status_label);
     root.append(&qr_picture);
     root.append(&hint_label);
-    root.append(&regenerate_button);
+    root.append(&button_row);
     root.append(&history_scroller);
 
     let window = ApplicationWindow::builder()
@@ -104,8 +117,8 @@ fn build_window(app: &Application, runtime: &tokio::runtime::Runtime, server: &A
 
     window.present();
 
-    // The server's dashboard broadcast (also what the browser-based
-    // dashboard's WebSocket streams) is bridged onto the GTK main loop
+    // The server's dashboard broadcast (the same live-status stream every
+    // native window renders from) is bridged onto the GTK main loop
     // via an async_channel -- GTK objects may only be touched from the
     // thread running the main loop, and that broadcast is driven from
     // the Tokio runtime's own worker threads.

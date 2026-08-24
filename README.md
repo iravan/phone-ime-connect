@@ -14,10 +14,8 @@ code/status/history on launch. On Linux it's a GTK4 window
 with a menu-bar icon (`tray/native.rs`, `tray/appkit_dashboard.rs`).
 Closing the Linux/Windows window quits the app entirely, including the
 pairing server; on macOS closing just hides the window (the menu-bar
-icon's "Show window" brings it back, "Quit" exits). The Linux and macOS
-windows have been built and tested on real machines; the Windows one is
-unverified -- written from documented APIs with no Windows machine
-available to build or run it against.
+icon's "Show window" brings it back, "Quit" exits). All three platforms'
+windows have now been built and tested on real machines.
 
 ## Why
 
@@ -31,10 +29,8 @@ account, no cloud service, and no app to install.
 
 1. Launch PhoneInputConnect. A window showing a QR code opens directly --
    a GTK4 window on Linux, a Win32 window on Windows, native AppKit
-   widgets on macOS (which also gets a menu-bar icon). The same QR
-   code/status/history is still reachable as a browser **dashboard** page
-   at `https://127.0.0.1:<port>/dashboard` if you want it in a real
-   browser tab.
+   widgets on macOS (which also gets a menu-bar icon). This window is the
+   only UI; there's no browser-based fallback.
 2. Scan the QR code with your phone's camera. It opens a chat-style page
    served directly from your computer over your LAN.
 3. Type a message on your phone and hit send. It's echoed back to your
@@ -42,11 +38,12 @@ account, no cloud service, and no app to install.
    focused window by placing it on the clipboard and simulating a paste
    (Ctrl+V, or Cmd+V on macOS) -- your previous clipboard contents are
    restored right after.
-4. The window (or dashboard page) updates live: it shows "Phone connected"
-   and a rolling history of the last few messages sent.
+4. The window updates live: it shows "Phone connected" and a rolling
+   history of the last few messages sent (with a "Clear history" button
+   on Linux and Windows to wipe that history early).
 
 Only one phone can be paired at a time. Scanning a new QR code (the
-window's/dashboard's "New code" button) invalidates the old one.
+window's "New code" button) invalidates the old one.
 
 If the phone's connection drops (screen lock, backgrounded browser tab,
 brief Wi-Fi blip), the same QR code/URL keeps working for about 45 seconds
@@ -134,16 +131,17 @@ reflects its own ecosystem's real conventions).
 
 The window is a native [`native-windows-gui`](https://docs.rs/native-windows-gui)
 (Win32) UI. No extra system packages are required -- `cargo run` builds
-and runs as normal. **Unverified**: written and formatted, but never
-actually compiled or run, since this has only ever been developed from
-Linux/macOS machines with no Windows available to test against. If you
-hit a build error or a runtime issue, that's expected until someone
-actually tries it; please report back what broke.
+and runs as normal. Built and tested on real Windows hardware; requires
+the `native-windows-gui` crate's `image-decoder` feature (already set in
+this repo's `Cargo.toml`) for the QR code to actually render -- without
+it, `Bitmap::builder().source_bin(...)` can't decode the PNG bytes the QR
+image is generated as.
 
 History doesn't have the Linux window's per-row hover-to-copy button --
 `native-windows-gui`'s plain controls don't support per-item interactive
 widgets without a much larger owner-drawn-ListView undertaking. Instead
-it's a read-only text box with a single "Copy last message" button.
+it's a read-only text box with a "Copy last message" button and a
+"Clear history" button.
 
 ### macOS
 
@@ -207,16 +205,14 @@ network, where other devices are untrusted:
   (defense in depth against scanning or log-spam, not against
   brute-forcing 256 bits of entropy, which is already computationally
   infeasible).
-- The same QR code/status/history is also always served as an HTML
-  dashboard page (needs no token), reachable only from `127.0.0.1` -- a
-  second, separate listening socket bound to loopback only, with every
-  request additionally checked against the connecting socket's own
-  remote address. Every platform's native window gets these same live
-  updates directly in-process instead of over this socket (the GTK,
-  Win32, and AppKit widgets are all fed straight from the snapshot
-  stream, no network connection involved), but the page is still there at
-  `https://127.0.0.1:<port>/dashboard` if you ever want it -- e.g. to
-  check status from another browser tab on the same machine.
+- There's only ever one listening socket -- the phone-facing one above.
+  An earlier version also served an HTML "dashboard" page on a second,
+  loopback-only socket (`127.0.0.1`) as a browser-based fallback for
+  viewing the QR code/status/history; that's gone now that every
+  platform has its own native window, fed the same status/history
+  updates directly in-process (the GTK, Win32, and AppKit widgets are
+  all fed straight from the snapshot stream, no network connection
+  involved).
 - Nothing is persisted to disk. Chat history is an in-memory ring buffer
   (the last 10 messages) that vanishes the moment the app stops.
 - Each message is placed on the system clipboard just long enough to paste
@@ -261,8 +257,8 @@ network, where other devices are untrusted:
   Accessibility permission (see the macOS build section); until it's
   granted, messages arrive but typing into other apps silently does
   nothing.
-- **Windows is unverified**: `window/windows.rs` was written from
-  `native-windows-gui`'s documented API with no Windows machine
-  available to compile or run it against -- unlike the Linux and macOS
-  windows, which have actually been built and tested. Treat it as a
-  best-effort first pass, not something known to work yet.
+- **Windows**: `window/windows.rs` has now been built and tested on real
+  Windows hardware, same as the Linux and macOS windows. It does need the
+  `native-windows-gui` crate's `image-decoder` feature enabled (see the
+  Windows build section above) -- without it, the QR code silently fails
+  to render even though everything else in the window works.
