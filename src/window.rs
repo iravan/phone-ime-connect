@@ -25,7 +25,7 @@ use tokio::sync::broadcast;
 
 use crate::server::PairingServer;
 
-const APP_ID: &str = "org.phonechat.PhoneChat";
+const APP_ID: &str = "org.phoneinputconnect.PhoneInputConnect";
 
 /// Runs the GTK main loop on the calling thread until the window is
 /// closed. `runtime` is shared (not consumed) so the caller can keep
@@ -86,7 +86,7 @@ fn build_window(app: &Application, runtime: &tokio::runtime::Runtime, server: &A
 
     let window = ApplicationWindow::builder()
         .application(app)
-        .title("PhoneChat")
+        .title("PhoneInputConnect")
         .default_width(360)
         .default_height(560)
         .child(&root)

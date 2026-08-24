@@ -1,4 +1,4 @@
-//! Lets a second launch of PhoneChat (e.g. clicking its icon again in an
+//! Lets a second launch of PhoneInputConnect (e.g. clicking its icon again in an
 //! app launcher) just reopen the dashboard of whichever instance is
 //! already running, instead of starting a competing second server --
 //! useful as a way back to the QR code that doesn't depend on a tray icon
@@ -19,7 +19,7 @@ use std::time::Duration;
 use directories::ProjectDirs;
 
 fn instance_file_path() -> io::Result<PathBuf> {
-    let dirs = ProjectDirs::from("", "", "phonechat")
+    let dirs = ProjectDirs::from("", "", "phone-input-connect")
         .ok_or_else(|| io::Error::other("could not determine a per-user app data directory"))?;
     let dir = dirs.data_local_dir().to_path_buf();
     std::fs::create_dir_all(&dir)?;
@@ -34,7 +34,7 @@ fn host_port(dashboard_url: &str) -> Option<&str> {
     dashboard_url.strip_prefix("https://")?.split('/').next()
 }
 
-/// If another PhoneChat instance is already running, returns its
+/// If another PhoneInputConnect instance is already running, returns its
 /// dashboard URL so the caller can just open a browser to it and exit,
 /// instead of starting a second server.
 pub async fn find_running_instance() -> Option<String> {

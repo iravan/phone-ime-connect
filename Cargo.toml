@@ -1,5 +1,5 @@
 [package]
-name = "phonechat"
+name = "phone-input-connect"
 version = "0.1.0"
 edition = "2021"
 

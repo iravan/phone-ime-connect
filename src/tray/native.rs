@@ -80,7 +80,7 @@ fn build_tray_icon(open_id: &MenuId, regenerate_id: &MenuId, quit_id: &MenuId) -
     TrayIconBuilder::new()
         .with_menu(Box::new(menu))
         .with_icon(build_icon())
-        .with_tooltip("PhoneChat")
+        .with_tooltip("PhoneInputConnect")
         .build()
         .expect("failed to create the tray icon")
 }
@@ -142,7 +142,7 @@ pub fn run(make_callback: fn(Arc<Injector>) -> Arc<dyn Fn(String) + Send + Sync>
     let runtime = tokio::runtime::Runtime::new().expect("failed to start the async runtime");
 
     if let Some(url) = runtime.block_on(crate::instance::find_running_instance()) {
-        log::info!("PhoneChat is already running; opening its dashboard: {url}");
+        log::info!("PhoneInputConnect is already running; opening its dashboard: {url}");
         let _ = webbrowser::open(&url);
         return;
     }

@@ -1,8 +1,8 @@
-# PhoneChat
+# PhoneInputConnect
 
 Type on your desktop by texting it from your phone.
 
-PhoneChat runs as a small app on your computer. It shows a QR code; scan
+PhoneInputConnect runs as a small app on your computer. It shows a QR code; scan
 it with your phone (same Wi-Fi network, no app install), type a message in
 the page that opens, and it's instantly typed into whatever window has
 focus on your desktop -- as if you'd typed it yourself.
@@ -18,13 +18,13 @@ window is follow-up work.
 
 Typing on a phone keyboard is often faster or more comfortable than reaching
 for a desktop keyboard -- e.g. dictating a note, pasting a password from a
-phone-based manager, or entering text one-handed. PhoneChat turns your
+phone-based manager, or entering text one-handed. PhoneInputConnect turns your
 phone into an ad hoc keyboard for whatever you're focused on, with no
 account, no cloud service, and no app to install.
 
 ## How it works
 
-1. Launch PhoneChat. On Linux, a window showing a QR code opens directly.
+1. Launch PhoneInputConnect. On Linux, a window showing a QR code opens directly.
    On Windows/macOS (no native window yet), it instead opens a
    **dashboard** page in your default browser
    (`https://127.0.0.1:<port>/dashboard`) with the same QR code, plus a
@@ -48,7 +48,7 @@ in case it reconnects on its own -- no need to re-scan for a short hiccup.
 Past that window, the code is invalidated for good and needs a fresh scan.
 
 On Windows/macOS, if you lose the dashboard tab and there's no tray icon
-to get it back, just launch PhoneChat again -- it detects the
+to get it back, just launch PhoneInputConnect again -- it detects the
 already-running instance and reopens its dashboard instead of starting a
 second one. (On Linux the window itself *is* the app, so there's nothing
 to lose track of; relaunching while it's already running just logs that
@@ -120,7 +120,7 @@ as normal.
 
 ## Security
 
-PhoneChat is designed to be safe to run on an ordinary home or office Wi-Fi
+PhoneInputConnect is designed to be safe to run on an ordinary home or office Wi-Fi
 network, where other devices are untrusted:
 
 - The phone-facing listener binds only to this machine's detected LAN
@@ -159,9 +159,9 @@ network, where other devices are untrusted:
 
 - **Wayland**: most compositors block synthetic input (both the clipboard
   write and the Ctrl+V keystroke) from arbitrary clients as a security
-  measure. On Wayland, PhoneChat's typing may silently do nothing even
+  measure. On Wayland, PhoneInputConnect's typing may silently do nothing even
   though the phone shows the message as delivered. This is a compositor
-  policy, not something PhoneChat can work around. If the paste keystroke
+  policy, not something PhoneInputConnect can work around. If the paste keystroke
   doesn't land, the message is still sitting on the clipboard -- a manual
   Ctrl+V/Cmd+V works as a fallback.
 - **First keystroke on GNOME/Mutter (Wayland sessions)**: newer Mutter
@@ -169,7 +169,7 @@ network, where other devices are untrusted:
   XTest-via-XWayland path `enigo` uses here -- behind the
   `RemoteDesktop` portal's consent dialog, even in an otherwise-X11/
   Xwayland session. Expect a one-time "allow remote desktop
-  interaction"-style prompt the first time PhoneChat actually sends a
+  interaction"-style prompt the first time PhoneInputConnect actually sends a
   keystroke; typing works normally after it's granted. Distributions
   that default to a plain Xorg session (no Wayland/Mutter involved at
   all) shouldn't see this prompt in the first place -- Zorin OS has

@@ -27,7 +27,7 @@ fn main() {
 
     if let Some(url) = runtime.block_on(instance::find_running_instance()) {
         log::info!(
-            "PhoneChat is already running; its dashboard is at {url} if you need it, \
+            "PhoneInputConnect is already running; its dashboard is at {url} if you need it, \
              but its window should already be on screen."
         );
         return;

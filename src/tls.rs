@@ -19,7 +19,7 @@ use directories::ProjectDirs;
 use rcgen::{generate_simple_self_signed, CertifiedKey};
 
 fn state_dir() -> std::io::Result<PathBuf> {
-    let dirs = ProjectDirs::from("", "", "phonechat").ok_or_else(|| {
+    let dirs = ProjectDirs::from("", "", "phone-input-connect").ok_or_else(|| {
         std::io::Error::other("could not determine a per-user app data directory")
     })?;
     let dir = dirs.data_local_dir().to_path_buf();
@@ -29,7 +29,7 @@ fn state_dir() -> std::io::Result<PathBuf> {
 
 fn generate(cert_path: &PathBuf, key_path: &PathBuf) -> std::io::Result<()> {
     let CertifiedKey { cert, key_pair } =
-        generate_simple_self_signed(vec!["phonechat.local".to_string()])
+        generate_simple_self_signed(vec!["phone-input-connect.local".to_string()])
             .map_err(std::io::Error::other)?;
     std::fs::write(cert_path, cert.pem())?;
     std::fs::write(key_path, key_pair.serialize_pem())?;
