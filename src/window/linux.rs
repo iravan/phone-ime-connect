@@ -8,9 +8,9 @@
 //! pairing server -- it's the only UI now, not a tray-minimizable
 //! convenience, so there's nothing meaningful left running without it.
 //!
-//! Windows/macOS don't have this yet (see `tray/native.rs`); giving them
-//! an equivalent native window, in each platform's own toolkit, is
-//! follow-up work.
+//! Windows has its own equivalent in `window/windows.rs`; macOS doesn't
+//! yet and still falls back to a tray icon plus a browser tab
+//! (`tray/native.rs`).
 
 use std::sync::Arc;
 

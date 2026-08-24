@@ -1,17 +1,14 @@
-//! Windows/macOS native window + tray/menu-bar icon, driven by a `winit`
-//! event loop that owns the process's actual main thread -- required by
-//! both platforms' native GUI plumbing (a Win32 message loop on Windows, a
-//! Cocoa run loop on macOS specifically has to pump on the main thread; see
-//! the module-level note in `tray/mod.rs`).
+//! The macOS native window + tray/menu-bar icon, driven by a `winit` event
+//! loop that owns the process's actual main thread -- required by macOS's
+//! native GUI plumbing (a Cocoa run loop specifically has to pump on the
+//! main thread; see the module-level note in `tray/mod.rs`). Linux and
+//! Windows have their own native windows instead (`window/`).
 //!
-//! The window shows the dashboard using each platform's own toolkit,
-//! wrapped behind a common `Content` type: native AppKit widgets on macOS
-//! (`appkit_dashboard.rs`), an embedded webview on Windows
-//! (`webview_dashboard.rs`). Either way it takes no network connection --
-//! the same in-process snapshot stream the Linux window uses
-//! (`PairingServer::subscribe_dashboard`) is pushed straight into the
-//! widgets, and the "New code" button calls back in-process. No external
-//! browser is opened.
+//! The dashboard is drawn with native AppKit widgets (`appkit_dashboard.rs`).
+//! It takes no network connection -- the same in-process snapshot stream the
+//! Linux window uses (`PairingServer::subscribe_dashboard`) is pushed
+//! straight into the widgets, and the "New code" button calls back
+//! in-process. No external browser is opened.
 //!
 //! Because the event loop owns this thread, the pairing server instead
 //! runs on a background Tokio runtime: it's started with one `block_on`
@@ -32,10 +29,7 @@ use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::platform::macos::{ActivationPolicy, EventLoopBuilderExtMacOS};
 use winit::window::{Window, WindowId};
 
-#[cfg(target_os = "macos")]
 use super::appkit_dashboard::Content;
-#[cfg(all(not(target_os = "linux"), not(target_os = "macos")))]
-use super::webview_dashboard::Content;
 use crate::injector::Injector;
 use crate::server::PairingServer;
 
