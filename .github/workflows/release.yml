@@ -1,0 +1,93 @@
+name: Release
+
+# Builds real Linux packages on real x86_64 infrastructure -- the dev
+# machine this project is otherwise built on is aarch64, which can't
+# reliably cross-compile a GTK4/libxdo-linked binary for x86_64 (no
+# cross-sysroot for those system libraries). The .rpm additionally builds
+# inside an actual Fedora container rather than on the Ubuntu host
+# directly, since its automatic shared-library dependency detection needs
+# to run where the target ecosystem's own packaging conventions live.
+# Pushing a `v*` tag publishes both to one GitHub Release;
+# workflow_dispatch just builds them as downloadable artifacts, for
+# testing without cutting a release.
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-deb:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: sudo apt-get update && sudo apt-get install -y libgtk-4-dev libxdo-dev
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-deb
+        run: cargo install cargo-deb --locked
+
+      - name: Build .deb
+        run: cargo deb
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: phone-input-connect-deb
+          path: target/debian/*.deb
+
+  build-rpm:
+    runs-on: ubuntu-latest
+    container: fedora:latest
+    steps:
+      - name: Install git (needed before checkout inside this container)
+        run: dnf install -y git
+
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: dnf install -y gcc gtk4-devel libxdo-devel
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-generate-rpm
+        run: cargo install cargo-generate-rpm --locked
+
+      - name: Build release binary
+        run: cargo build --release
+
+      - name: Build .rpm
+        run: cargo generate-rpm
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: phone-input-connect-rpm
+          path: target/generate-rpm/*.rpm
+
+  publish:
+    needs: [build-deb, build-rpm]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Publish to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" dist/*.deb dist/*.rpm \
+            --repo "${{ github.repository }}" --title "${{ github.ref_name }}" --generate-notes \
+          || gh release upload "${{ github.ref_name }}" dist/*.deb dist/*.rpm \
+            --repo "${{ github.repository }}" --clobber

@@ -4,25 +4,29 @@ mod lan;
 mod qr;
 mod server;
 mod tls;
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "windows"))]
 mod window;
 
-#[cfg(not(target_os = "linux"))]
+#[cfg(target_os = "macos")]
 mod tray;
 
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "windows"))]
 use std::sync::Arc;
 
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "windows"))]
 use server::PairingServer;
 
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "windows"))]
 fn on_message_callback(injector: Arc<injector::Injector>) -> Arc<dyn Fn(String) + Send + Sync> {
     Arc::new(move |text: String| injector.type_text(&text))
 }
 
-#[cfg(target_os = "linux")]
-fn main() {
+/// Shared by Linux and Windows, whose only real difference is which
+/// native-window toolkit actually renders the UI (`window_run`).
+#[cfg(any(target_os = "linux", target_os = "windows"))]
+fn run_with_native_window(
+    window_run: impl FnOnce(Arc<tokio::runtime::Runtime>, Arc<PairingServer>),
+) {
     env_logger::init();
 
     let runtime =
@@ -48,12 +52,22 @@ fn main() {
     instance::record_running_instance(&server.dashboard_url());
 
     // Blocks until the window is closed.
-    window::run(runtime.clone(), server.clone());
+    window_run(runtime.clone(), server.clone());
 
     runtime.block_on(server.stop());
 }
 
-#[cfg(not(target_os = "linux"))]
+#[cfg(target_os = "linux")]
+fn main() {
+    run_with_native_window(window::linux::run);
+}
+
+#[cfg(target_os = "windows")]
+fn main() {
+    run_with_native_window(window::windows::run);
+}
+
+#[cfg(target_os = "macos")]
 fn main() {
     env_logger::init();
     tray::native::run();

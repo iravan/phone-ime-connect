@@ -1,7 +1,9 @@
 [package]
 name = "phone-input-connect"
-version = "0.1.0"
+version = "0.3.0"
 edition = "2021"
+license = "GPL-3.0-or-later"
+description = "Type on your desktop by texting it from your phone"
 
 [dependencies]
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time", "sync", "signal"] }
@@ -21,25 +23,24 @@ if-addrs = "0.15"
 log = "0.4"
 env_logger = "0.11"
 
-# The primary UI is a native window built on each platform's own toolkit
-# (see the README's "Platform notes" -- Windows/macOS don't have their
-# native window implemented yet and fall back to a tray icon + browser
-# tab in the meantime, hence webbrowser/tray-icon/winit staying
-# non-Linux-only below).
+# The primary UI is a native window built on each platform's own toolkit:
+# GTK4 on Linux, native-windows-gui on Windows, and AppKit (via objc2) on
+# macOS -- the latter hosted in a winit window with a tray/menu-bar icon.
 [target.'cfg(target_os = "linux")'.dependencies]
 gtk4 = { version = "0.11", features = ["v4_6"] }
 async-channel = "2"
 
-[target.'cfg(not(target_os = "linux"))'.dependencies]
-tray-icon = "0.19"
-winit = "0.30"
+[target.'cfg(target_os = "windows")'.dependencies]
+native-windows-gui = "1.0"
 
 # macOS native window: the dashboard rendered with AppKit widgets
 # (NSStackView of NSTextField / NSImageView / NSButton) via objc2, fed by
-# the same in-process JSON snapshots the Linux GTK window uses. objc2's
-# own version is independent of winit's -- they meet only at the raw
-# NSView pointer, which is binding-version-agnostic.
+# the same in-process JSON snapshots the Linux GTK window uses, inside a
+# winit window with a tray icon. objc2's version is independent of winit's
+# -- they meet only at the raw NSView pointer, which is version-agnostic.
 [target.'cfg(target_os = "macos")'.dependencies]
+tray-icon = "0.19"
+winit = "0.30"
 objc2 = "0.6"
 objc2-foundation = { version = "0.3", features = ["NSString", "NSData", "NSGeometry"] }
 objc2-app-kit = { version = "0.3", features = [
@@ -56,7 +57,27 @@ objc2-app-kit = { version = "0.3", features = [
     "NSUserInterfaceLayout",
 ] }
 
-# Windows native window still hosts an embedded WebView2 (via wry) rendering
-# the dashboard; a native Win32 dashboard is follow-up work.
-[target.'cfg(windows)'.dependencies]
-wry = "0.56"
+[package.metadata.deb]
+maintainer = "PhoneInputConnect contributors"
+copyright = "2026, PhoneInputConnect contributors"
+license-file = ["LICENSE", "4"]
+extended-description = """\
+Type on your desktop by texting it from your phone: scan a QR code \
+to pair over your LAN, and whatever you send gets pasted into \
+whatever window has focus on your desktop."""
+depends = "$auto"
+section = "utils"
+priority = "optional"
+assets = [
+    ["target/release/phone-input-connect", "usr/bin/", "755"],
+    ["packaging/linux/org.phoneinputconnect.PhoneInputConnect.desktop", "usr/share/applications/", "644"],
+    ["assets/icon-256.png", "usr/share/icons/hicolor/256x256/apps/phone-input-connect.png", "644"],
+]
+
+[package.metadata.generate-rpm]
+summary = "Type on your desktop by texting it from your phone"
+assets = [
+    { source = "target/release/phone-input-connect", dest = "/usr/bin/phone-input-connect", mode = "755" },
+    { source = "packaging/linux/org.phoneinputconnect.PhoneInputConnect.desktop", dest = "/usr/share/applications/org.phoneinputconnect.PhoneInputConnect.desktop", mode = "644" },
+    { source = "assets/icon-256.png", dest = "/usr/share/icons/hicolor/256x256/apps/phone-input-connect.png", mode = "644" },
+]
