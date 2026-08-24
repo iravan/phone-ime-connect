@@ -8,12 +8,14 @@ the page that opens, and it's instantly typed into whatever window has
 focus on your desktop -- as if you'd typed it yourself.
 
 **Platform status**: every platform now opens a native window showing the
-QR code/status/history on launch. On Linux it's a GTK4 window (see
-`window.rs`); on Windows/macOS it's an embedded webview hosted in a
-`winit` window alongside a tray/menu-bar icon (see `tray/native.rs`).
-Closing the Linux window quits the app; on Windows/macOS closing just
-hides the window (the tray icon's "Show window" brings it back, "Quit"
-exits).
+QR code/status/history on launch, hosted in a `winit` window with a
+tray/menu-bar icon (see `tray/native.rs`). On Linux it's a GTK4 window
+(see `window.rs`); on macOS the dashboard is drawn with native AppKit
+widgets (see `tray/appkit_dashboard.rs`); on Windows it's an embedded
+WebView2 (see `tray/webview_dashboard.rs`) until a native Win32 dashboard
+is written. Closing the Linux window quits the app; on Windows/macOS
+closing just hides the window (the tray icon's "Show window" brings it
+back, "Quit" exits).
 
 ## Why
 
@@ -26,8 +28,9 @@ account, no cloud service, and no app to install.
 ## How it works
 
 1. Launch PhoneInputConnect. A window showing a QR code opens directly --
-   a GTK4 window on Linux, an embedded webview on Windows/macOS (which
-   also get a tray/menu-bar icon). The same QR code/status/history is
+   a GTK4 window on Linux, native AppKit widgets on macOS, an embedded
+   webview on Windows (all three also get a tray/menu-bar icon on
+   Windows/macOS). The same QR code/status/history is
    still reachable as a browser **dashboard** page at
    `https://127.0.0.1:<port>/dashboard` if you want it in a real browser
    tab.
@@ -114,13 +117,14 @@ is baked into the installed entry as-is.
 
 ### Windows / macOS
 
-Uses [`winit`](https://docs.rs/winit) for the window and event loop,
-[`wry`](https://docs.rs/wry) for the embedded webview that renders the
-dashboard (WKWebView on macOS, WebView2 on Windows), and
-[`tray-icon`](https://docs.rs/tray-icon) for the tray/menu-bar icon. The
-system webview ships with the OS (Windows 10+ bundles the WebView2
-runtime), so no extra system packages are required. `cargo run` builds
-and runs as normal.
+Uses [`winit`](https://docs.rs/winit) for the window and event loop and
+[`tray-icon`](https://docs.rs/tray-icon) for the tray/menu-bar icon. On
+macOS the dashboard inside that window is built from native AppKit
+widgets via [`objc2`](https://docs.rs/objc2) (`NSStackView` of
+`NSTextField`/`NSImageView`/`NSButton`); on Windows it's an embedded
+WebView2 via [`wry`](https://docs.rs/wry) (bundled with Windows 10+),
+pending a native Win32 dashboard. Either way no extra system packages are
+required -- `cargo run` builds and runs as normal.
 
 ## Security
 
@@ -153,11 +157,12 @@ network, where other devices are untrusted:
   second, separate listening socket bound to loopback only, with every
   request additionally checked against the connecting socket's own
   remote address. Every platform's native window gets these same live
-  updates directly in-process instead of over this socket (on
-  Windows/macOS the embedded webview is fed via its IPC bridge, not a
-  network connection -- the self-signed cert can't be clicked through
-  inside an embedded webview anyway), but the page is still there at
-  `https://127.0.0.1:<port>/dashboard` if you ever want it in a real
+  updates directly in-process instead of over this socket (the Linux GTK
+  and macOS AppKit widgets are updated straight from the snapshot stream;
+  the Windows webview is fed via its IPC bridge -- none of them make a
+  network connection, and the self-signed cert couldn't be clicked
+  through inside an embedded webview anyway), but the page is still there
+  at `https://127.0.0.1:<port>/dashboard` if you ever want it in a real
   browser tab on the same machine.
 - Nothing is persisted to disk. Chat history is an in-memory ring buffer
   (the last 10 messages) that vanishes the moment the app stops.
@@ -195,8 +200,9 @@ network, where other devices are untrusted:
   Unicode keysym trick that most IMEs -- built to interpret real keystrokes
   as composition input, not to accept a pre-composed character outright --
   would silently drop or mangle. Pasting sidesteps that entirely.
-- **Windows/macOS native window**: an embedded webview in a `winit`
-  window, plus a tray/menu-bar icon (`tray/native.rs`). On macOS the app
+- **Windows/macOS native window**: a `winit` window plus a tray/menu-bar
+  icon (`tray/native.rs`), with the dashboard drawn by native AppKit
+  widgets on macOS and an embedded WebView2 on Windows. On macOS the app
   runs under the "Regular" activation policy (a Dock icon), so it behaves
   like an ordinary windowed app; closing the window hides it and leaves
   the app in the menu bar rather than quitting. Any tray-icon-visibility

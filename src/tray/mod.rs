@@ -8,3 +8,11 @@
 
 #[cfg(not(target_os = "linux"))]
 pub mod native;
+
+// The window's dashboard content: native AppKit widgets on macOS, an
+// embedded webview elsewhere (Windows). Both expose the same `Content` API
+// that `native.rs` drives.
+#[cfg(target_os = "macos")]
+mod appkit_dashboard;
+#[cfg(all(not(target_os = "linux"), not(target_os = "macos")))]
+mod webview_dashboard;
