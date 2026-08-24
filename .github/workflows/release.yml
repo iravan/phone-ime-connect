@@ -1,4 +1,4 @@
-name: Release
+﻿name: Release
 
 # Builds real Linux packages on real x86_64 infrastructure -- the dev
 # machine this project is otherwise built on is aarch64, which can't
@@ -53,13 +53,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install build dependencies
-        # libxkbcommon-devel: needed since enigo's "libei" feature (native
-        # Wayland input support) links against libxkbcommon. Unlike
-        # Debian/Ubuntu's libgtk-4-dev, which pulls in libxkbcommon-dev
-        # transitively (see build-deb below, which needs no such
-        # explicit install), Fedora's gtk4-devel doesn't -- without this,
-        # linking fails with "cannot find -lxkbcommon".
-        run: dnf install -y gcc gtk4-devel libxdo-devel libxkbcommon-devel
+        run: dnf install -y gcc gtk4-devel libxdo-devel
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -79,8 +73,39 @@ jobs:
           name: phone-input-connect-rpm
           path: target/generate-rpm/*.rpm
 
+  build-windows:
+    # Windows was previously unverified (no Windows machine to build it on
+    # at all); it's now confirmed working on real hardware, so it gets a
+    # release job like the other two platforms. No extra system packages
+    # needed here -- `windows-latest` already ships the MSVC build tools
+    # `native-windows-gui` needs, same as a plain `cargo run` locally.
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build release binary
+        run: cargo build --release
+
+      - name: Package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path dist-windows | Out-Null
+          Copy-Item target/release/phone-input-connect.exe dist-windows/
+          Copy-Item README.md dist-windows/
+          Copy-Item LICENSE dist-windows/
+          Compress-Archive -Path dist-windows/* -DestinationPath phone-input-connect-windows-x86_64.zip
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: phone-input-connect-windows
+          path: phone-input-connect-windows-x86_64.zip
+
   publish:
-    needs: [build-deb, build-rpm]
+    needs: [build-deb, build-rpm, build-windows]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
@@ -93,7 +118,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${{ github.ref_name }}" dist/*.deb dist/*.rpm \
+          gh release create "${{ github.ref_name }}" dist/*.deb dist/*.rpm dist/*.zip \
             --repo "${{ github.repository }}" --title "${{ github.ref_name }}" --generate-notes \
-          || gh release upload "${{ github.ref_name }}" dist/*.deb dist/*.rpm \
+          || gh release upload "${{ github.ref_name }}" dist/*.deb dist/*.rpm dist/*.zip \
             --repo "${{ github.repository }}" --clobber
