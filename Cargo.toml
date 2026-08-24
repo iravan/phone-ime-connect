@@ -21,15 +21,18 @@ log = "0.4"
 env_logger = "0.11"
 
 # The primary UI is a native window built on each platform's own toolkit
-# (see the README's "Platform notes" -- Windows/macOS don't have their
-# native window implemented yet and fall back to a tray icon + browser
-# tab in the meantime, hence webbrowser/tray-icon/winit staying
-# non-Linux-only below).
+# (see the README's "Platform notes" -- macOS doesn't have its native
+# window implemented yet and falls back to a tray icon + browser tab in
+# the meantime, hence webbrowser/tray-icon/winit staying macOS-only
+# below).
 [target.'cfg(target_os = "linux")'.dependencies]
 gtk4 = { version = "0.11", features = ["v4_6"] }
 async-channel = "2"
 
-[target.'cfg(not(target_os = "linux"))'.dependencies]
+[target.'cfg(target_os = "windows")'.dependencies]
+native-windows-gui = "1.0"
+
+[target.'cfg(target_os = "macos")'.dependencies]
 webbrowser = "1"
 tray-icon = "0.19"
 winit = "0.30"

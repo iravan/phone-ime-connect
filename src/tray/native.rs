@@ -1,8 +1,10 @@
-//! Windows/macOS tray icon via `tray-icon`, driven by a `winit` event loop
-//! that owns the process's actual main thread -- required by both
-//! platforms' native GUI plumbing (a Win32 message loop on Windows, a
-//! Cocoa run loop on macOS specifically has to pump on the main thread; see
-//! the module-level note in `tray/mod.rs`).
+//! macOS tray icon via `tray-icon`, driven by a `winit` event loop that
+//! owns the process's actual main thread -- required by macOS's native
+//! GUI plumbing (a Cocoa run loop specifically has to pump on the main
+//! thread; see the module-level note in `tray/mod.rs`). Windows has its
+//! own native window instead (`window/windows.rs`); this tray-icon-based
+//! `winit` event loop would work there too in principle, but there's no
+//! reason to keep it once a platform has a real native window.
 //!
 //! Because the event loop owns this thread, the pairing server instead
 //! runs on a background Tokio runtime: it's started with one `block_on`

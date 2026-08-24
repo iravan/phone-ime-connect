@@ -7,12 +7,15 @@ it with your phone (same Wi-Fi network, no app install), type a message in
 the page that opens, and it's instantly typed into whatever window has
 focus on your desktop -- as if you'd typed it yourself.
 
-**Platform status**: on Linux, the QR code/status/history live in a native
-window (see `window.rs`) that opens on launch -- closing it quits the app
-entirely, including the pairing server. Windows and macOS don't have that
-yet and fall back to a tray icon plus a browser tab for the same
-information (see `tray/native.rs`); giving them an equivalent native
-window is follow-up work.
+**Platform status**: on Linux and Windows, the QR code/status/history live
+in a native window (`window/linux.rs`, `window/windows.rs`) that opens on
+launch -- closing it quits the app entirely, including the pairing
+server. macOS doesn't have that yet and falls back to a tray icon plus a
+browser tab for the same information (`tray/native.rs`); giving it an
+equivalent native window is follow-up work. The Windows window is
+unverified -- written from documented APIs with no Windows machine
+available to actually build or run it against; the Linux one has been
+built and smoke-tested on a real machine.
 
 ## Why
 
@@ -24,9 +27,9 @@ account, no cloud service, and no app to install.
 
 ## How it works
 
-1. Launch PhoneInputConnect. On Linux, a window showing a QR code opens directly.
-   On Windows/macOS (no native window yet), it instead opens a
-   **dashboard** page in your default browser
+1. Launch PhoneInputConnect. On Linux and Windows, a window showing a QR
+   code opens directly. On macOS (no native window yet), it instead
+   opens a **dashboard** page in your default browser
    (`https://127.0.0.1:<port>/dashboard`) with the same QR code, plus a
    tray/menu bar icon.
 2. Scan the QR code with your phone's camera. It opens a chat-style page
@@ -47,12 +50,13 @@ brief Wi-Fi blip), the same QR code/URL keeps working for about 45 seconds
 in case it reconnects on its own -- no need to re-scan for a short hiccup.
 Past that window, the code is invalidated for good and needs a fresh scan.
 
-On Windows/macOS, if you lose the dashboard tab and there's no tray icon
-to get it back, just launch PhoneInputConnect again -- it detects the
+On macOS, if you lose the dashboard tab and there's no tray icon to get
+it back, just launch PhoneInputConnect again -- it detects the
 already-running instance and reopens its dashboard instead of starting a
-second one. (On Linux the window itself *is* the app, so there's nothing
-to lose track of; relaunching while it's already running just logs that
-it's already up rather than trying to bring the existing window forward.)
+second one. (On Linux and Windows the window itself *is* the app, so
+there's nothing to lose track of; relaunching while it's already running
+just logs that it's already up rather than trying to bring the existing
+window forward.)
 
 ## Building and running
 
@@ -111,12 +115,27 @@ just run the binary directly -- GNOME matches by application ID either
 way. Re-run the script if you move the checkout, since the binary's path
 is baked into the installed entry as-is.
 
-### Windows / macOS
+### Windows
 
-Uses [`tray-icon`](https://docs.rs/tray-icon) and
-[`winit`](https://docs.rs/winit) for the tray/menu-bar icon and its event
-loop. No extra system packages are required. `cargo run` builds and runs
-as normal.
+The window is a native [`native-windows-gui`](https://docs.rs/native-windows-gui)
+(Win32) UI. No extra system packages are required -- `cargo run` builds
+and runs as normal. **Unverified**: written and formatted, but never
+actually compiled or run, since this has only ever been developed from a
+Linux machine with no Windows available to test against. If you hit a
+build error or a runtime issue, that's expected until someone actually
+tries it; please report back what broke.
+
+History doesn't have the Linux window's per-row hover-to-copy button --
+`native-windows-gui`'s plain controls don't support per-item interactive
+widgets without a much larger owner-drawn-ListView undertaking. Instead
+it's a read-only text box with a single "Copy last message" button.
+
+### macOS
+
+No native window yet -- uses [`tray-icon`](https://docs.rs/tray-icon) and
+[`winit`](https://docs.rs/winit) for a tray/menu-bar icon plus the
+browser-based dashboard instead (see "Platform status" above). No extra
+system packages are required. `cargo run` builds and runs as normal.
 
 ## Security
 
@@ -148,9 +167,9 @@ network, where other devices are untrusted:
   dashboard page (needs no token), reachable only from `127.0.0.1` -- a
   second, separate listening socket bound to loopback only, with every
   request additionally checked against the connecting socket's own
-  remote address. Windows/macOS currently rely on this (opened in your
-  browser); on Linux, the native window gets the same live updates
-  directly in-process instead, but the page is still there at
+  remote address. macOS currently relies on this (opened in your
+  browser); on Linux and Windows, the native window gets the same live
+  updates directly in-process instead, but the page is still there at
   `https://127.0.0.1:<port>/dashboard` if you ever want it -- e.g. to
   check status from another browser tab on the same machine.
 - Nothing is persisted to disk. Chat history is an in-memory ring buffer
@@ -189,7 +208,12 @@ network, where other devices are untrusted:
   Unicode keysym trick that most IMEs -- built to interpret real keystrokes
   as composition input, not to accept a pre-composed character outright --
   would silently drop or mangle. Pasting sidesteps that entirely.
-- **Windows/macOS don't have the native window yet**: they still use the
-  tray icon + browser dashboard from before (`tray/native.rs`), including
+- **macOS doesn't have the native window yet**: it still uses the tray
+  icon + browser dashboard from before (`tray/native.rs`), including
   whatever tray-icon-visibility quirks that platform has. This is a
   temporary gap, not an intended long-term difference.
+- **Windows is unverified**: `window/windows.rs` was written from
+  `native-windows-gui`'s documented API with no Windows machine
+  available to compile or run it against -- unlike the Linux window,
+  which has actually been built and smoke-tested. Treat it as a
+  best-effort first pass, not something known to work yet.
