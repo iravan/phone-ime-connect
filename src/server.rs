@@ -166,7 +166,7 @@ fn html_response(body: &'static str) -> Response {
         .header(
             header::CONTENT_SECURITY_POLICY,
             "default-src 'self'; script-src 'unsafe-inline'; \
-             style-src 'unsafe-inline'; connect-src 'self'",
+             style-src 'unsafe-inline'; connect-src 'self'; img-src 'self' data:",
         )
         .header("X-Content-Type-Options", "nosniff")
         .header(header::CACHE_CONTROL, "no-store")
