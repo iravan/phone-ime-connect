@@ -6,7 +6,7 @@ license = "GPL-3.0-or-later"
 description = "Type on your desktop by texting it from your phone"
 
 [dependencies]
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time", "sync", "signal"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time", "sync"] }
 axum = { version = "0.7", features = ["ws"] }
 axum-server = { version = "0.8", features = ["tls-rustls"] }
 rcgen = "0.13"
@@ -50,15 +50,12 @@ winit = "0.30"
 objc2 = "0.6"
 objc2-foundation = { version = "0.3", features = ["NSString", "NSData", "NSGeometry"] }
 objc2-app-kit = { version = "0.3", features = [
-    "NSResponder",
     "NSView",
-    "NSControl",
     "NSTextField",
     "NSButton",
     "NSImageView",
     "NSImage",
     "NSStackView",
-    "NSCell",
     "NSLayoutConstraint",
     "NSUserInterfaceLayout",
 ] }
