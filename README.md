@@ -23,8 +23,10 @@ account, no cloud service, and no app to install.
 2. Scan the QR code with your phone's camera. It opens a chat-style page
    served directly from your computer over your LAN.
 3. Type a message on your phone and hit send. It's echoed back to your
-   phone as a chat bubble, and typed into the desktop's currently focused
-   window via simulated keystrokes.
+   phone as a chat bubble, and delivered into the desktop's currently
+   focused window by placing it on the clipboard and simulating a paste
+   (Ctrl+V, or Cmd+V on macOS) -- your previous clipboard contents are
+   restored right after.
 4. The dashboard updates live: it shows "Phone connected" and a rolling
    history of the last few messages sent.
 
@@ -92,22 +94,28 @@ network, where other devices are untrusted:
   additionally checked against the connecting socket's own remote address.
 - Nothing is persisted to disk. Chat history is an in-memory ring buffer
   (the last 10 messages) that vanishes the moment the app stops.
+- Each message is placed on the system clipboard just long enough to paste
+  it into the focused window, then your previous clipboard contents are
+  restored. Anything else on your machine that happens to poll the
+  clipboard during that brief window could observe the message in transit.
 
 ## Platform notes
 
-- **Wayland**: most compositors block synthetic keyboard input from
-  arbitrary clients as a security measure. On Wayland, PhoneChat's typing
-  may silently do nothing even though the phone shows the message as
-  delivered. This is a compositor policy, not something PhoneChat can work
-  around; X11 and Xwayland sessions are unaffected.
-- **Non-Latin text (CJK, etc.) on Linux/X11**: typing works by simulating
-  individual keypresses (via `libxdo`), which types Latin text reliably but
-  can silently drop or mangle Chinese/Japanese/Korean and other non-Latin
-  characters -- most IMEs only recognize real keyboard scancodes or proper
-  IME composition events, not synthetic Unicode keypresses. This fails
-  quietly, with the phone still showing the message as delivered. There's
-  no code-level fix for this short of switching the injection mechanism
-  entirely (e.g. clipboard + simulated paste instead of keystrokes).
+- **Wayland**: most compositors block synthetic input (both the clipboard
+  write and the Ctrl+V keystroke) from arbitrary clients as a security
+  measure. On Wayland, PhoneChat's typing may silently do nothing even
+  though the phone shows the message as delivered. This is a compositor
+  policy, not something PhoneChat can work around; X11 and Xwayland
+  sessions are unaffected. If the paste keystroke doesn't land, the
+  message is still sitting on the clipboard -- a manual Ctrl+V/Cmd+V works
+  as a fallback.
+- Delivery works by placing the message on the clipboard and simulating a
+  paste, specifically *because* simulating individual keypresses (the
+  previous approach, via `libxdo` on Linux) only has keycodes for the
+  physical keyboard layout: non-Latin text (CJK, etc.) needed a synthetic
+  Unicode keysym trick that most IMEs -- built to interpret real keystrokes
+  as composition input, not to accept a pre-composed character outright --
+  would silently drop or mangle. Pasting sidesteps that entirely.
 - **GNOME Shell (Linux)**: stock GNOME Shell has no StatusNotifierWatcher
   running, so no tray icon will appear unless you install the "AppIndicator
   and KStatusNotifierItem Support" extension. The app still runs and opens
