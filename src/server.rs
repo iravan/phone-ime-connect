@@ -265,6 +265,7 @@ async fn handle_phone_socket(mut socket: WebSocket, state: Arc<ServerState>) {
             .send(Message::Text(
                 serde_json::json!({
                     "type": "error",
+                    "code": "already_connected",
                     "message": "Another phone is already connected.",
                 })
                 .to_string(),
@@ -334,6 +335,7 @@ async fn handle_phone_socket(mut socket: WebSocket, state: Arc<ServerState>) {
                     .send(Message::Text(
                         serde_json::json!({
                             "type": "error",
+                            "code": "new_code_generated",
                             "message": "Disconnected: a new code was generated.",
                         })
                         .to_string(),
@@ -365,17 +367,22 @@ async fn handle_phone_socket(mut socket: WebSocket, state: Arc<ServerState>) {
 async fn handle_incoming(socket: &mut WebSocket, state: &Arc<ServerState>, raw: String) -> bool {
     let payload: serde_json::Value = match serde_json::from_str(&raw) {
         Ok(v) => v,
-        Err(_) => return send_error(socket, "Malformed message.").await,
+        Err(_) => return send_error(socket, "malformed", "Malformed message.").await,
     };
+    if payload.get("type").and_then(|v| v.as_str()) == Some("clear") {
+        state.history.lock().unwrap().clear();
+        state.broadcast_dashboard();
+        return true;
+    }
     if payload.get("type").and_then(|v| v.as_str()) != Some("message") {
-        return send_error(socket, "Unknown message type.").await;
+        return send_error(socket, "unknown_type", "Unknown message type.").await;
     }
     let text = match payload.get("text").and_then(|v| v.as_str()) {
         Some(t) if !t.is_empty() => t,
-        _ => return send_error(socket, "Empty message.").await,
+        _ => return send_error(socket, "empty_message", "Empty message.").await,
     };
     if text.chars().count() > MAX_MESSAGE_LEN {
-        return send_error(socket, "Message too long.").await;
+        return send_error(socket, "too_long", "Message too long.").await;
     }
     let text = text.to_string();
 
@@ -410,10 +417,14 @@ async fn handle_incoming(socket: &mut WebSocket, state: &Arc<ServerState>, raw: 
         .is_ok()
 }
 
-async fn send_error(socket: &mut WebSocket, message: &str) -> bool {
+/// `code` is a stable machine-readable identifier the client can map to a
+/// localized string in its own language (the phone's browser language,
+/// independent of the desktop's); `message` is the English fallback for
+/// any client that doesn't recognize the code.
+async fn send_error(socket: &mut WebSocket, code: &str, message: &str) -> bool {
     socket
         .send(Message::Text(
-            serde_json::json!({"type": "error", "message": message}).to_string(),
+            serde_json::json!({"type": "error", "code": code, "message": message}).to_string(),
         ))
         .await
         .is_ok()

@@ -73,19 +73,25 @@ fn build_icon() -> Icon {
 }
 
 fn build_tray_icon(open_id: &MenuId, regenerate_id: &MenuId, quit_id: &MenuId) -> TrayIcon {
+    let s = crate::i18n::strings();
     let menu = Menu::new();
-    menu.append(&MenuItem::with_id(open_id.clone(), "Show window", true, None))
-        .expect("appending a menu item should never fail");
+    menu.append(&MenuItem::with_id(
+        open_id.clone(),
+        s.tray_show_window,
+        true,
+        None,
+    ))
+    .expect("appending a menu item should never fail");
     menu.append(&MenuItem::with_id(
         regenerate_id.clone(),
-        "New code",
+        s.button_new_code,
         true,
         None,
     ))
     .expect("appending a menu item should never fail");
     menu.append(&PredefinedMenuItem::separator())
         .expect("appending a menu item should never fail");
-    menu.append(&MenuItem::with_id(quit_id.clone(), "Quit", true, None))
+    menu.append(&MenuItem::with_id(quit_id.clone(), s.tray_quit, true, None))
         .expect("appending a menu item should never fail");
 
     TrayIconBuilder::new()

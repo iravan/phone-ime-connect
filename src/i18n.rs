@@ -1,0 +1,93 @@
+//! Minimal translation support for the native windows (Linux/Windows/
+//! macOS): English and Traditional Chinese, picked once at startup from
+//! the OS's own UI language. Only these two are supported so far -- an
+//! unrecognized locale falls back to English rather than guessing.
+//!
+//! The phone-facing web page (`webapp/chat.html`) does its own,
+//! independent translation from the *phone's* browser language
+//! (`navigator.language`) instead of anything in this module: the phone
+//! and desktop are different devices, so there's no reason their UI
+//! languages should be tied together.
+
+use std::sync::OnceLock;
+
+pub struct Strings {
+    pub connecting: &'static str,
+    pub hint_scan: &'static str,
+    pub button_new_code: &'static str,
+    pub button_clear_history: &'static str,
+    pub button_copy_last_message: &'static str,
+    pub status_connected: &'static str,
+    pub hint_connected: &'static str,
+    pub status_reconnecting: &'static str,
+    pub hint_reconnecting: &'static str,
+    pub status_waiting: &'static str,
+    pub history_header: &'static str,
+    pub history_empty: &'static str,
+    pub copy_to_clipboard_tooltip: &'static str,
+    pub tray_show_window: &'static str,
+    pub tray_quit: &'static str,
+}
+
+const EN: Strings = Strings {
+    connecting: "Connecting…",
+    hint_scan: "Scan with a phone on the same network.",
+    button_new_code: "New code",
+    button_clear_history: "Clear history",
+    button_copy_last_message: "Copy last message",
+    status_connected: "Phone connected",
+    hint_connected: "Messages you send from the phone appear below.",
+    status_reconnecting: "Phone disconnected — waiting to reconnect…",
+    hint_reconnecting: "The same code still works for a bit in case it reconnects on its \
+                         own; scan again if it doesn't.",
+    status_waiting: "Waiting for a phone to scan the code below",
+    history_header: "Recent messages",
+    history_empty: "No messages yet",
+    copy_to_clipboard_tooltip: "Copy to clipboard",
+    tray_show_window: "Show window",
+    tray_quit: "Quit",
+};
+
+const ZH_HANT: Strings = Strings {
+    connecting: "連線中…",
+    hint_scan: "請使用同一網路下的手機掃描。",
+    button_new_code: "產生新代碼",
+    button_clear_history: "清除紀錄",
+    button_copy_last_message: "複製最後訊息",
+    status_connected: "手機已連線",
+    hint_connected: "手機傳來的訊息會顯示在下方。",
+    status_reconnecting: "手機已中斷連線 — 正在等待重新連線…",
+    hint_reconnecting: "同一組代碼仍可短暫使用，以便自動重新連線；若無法自動重連，請重新掃描。",
+    status_waiting: "請使用手機掃描下方的代碼",
+    history_header: "近期訊息",
+    history_empty: "尚無訊息",
+    copy_to_clipboard_tooltip: "複製到剪貼簿",
+    tray_show_window: "顯示視窗",
+    tray_quit: "結束",
+};
+
+/// The OS UI language can't change over the life of the process, and
+/// every window-construction site needs this, so it's detected once and
+/// cached rather than re-resolved per call.
+pub fn strings() -> &'static Strings {
+    static CACHE: OnceLock<&'static Strings> = OnceLock::new();
+    *CACHE.get_or_init(|| if is_traditional_chinese() { &ZH_HANT } else { &EN })
+}
+
+/// Traditional Chinese locales: Taiwan, Hong Kong, Macau, or an explicit
+/// "Hant" script subtag. Simplified Chinese (`zh-CN`/`zh-Hans`/etc.) and
+/// everything else falls back to English -- only these two languages are
+/// supported so far.
+fn is_traditional_chinese() -> bool {
+    let Some(locale) = sys_locale::get_locale() else {
+        return false;
+    };
+    let locale = locale.to_ascii_lowercase();
+    locale.starts_with("zh-tw")
+        || locale.starts_with("zh_tw")
+        || locale.starts_with("zh-hk")
+        || locale.starts_with("zh_hk")
+        || locale.starts_with("zh-mo")
+        || locale.starts_with("zh_mo")
+        || locale.contains("hant")
+}

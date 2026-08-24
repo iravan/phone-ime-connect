@@ -66,20 +66,21 @@ impl Content {
     /// Builds the dashboard widgets into `window`'s content view. Must be
     /// called on the main thread (AppKit's only UI thread).
     pub fn create(window: &Window, server: Arc<PairingServer>) -> Content {
+        let s = crate::i18n::strings();
         let mtm =
             MainThreadMarker::new().expect("the dashboard UI must be built on the main thread");
         let content = content_view(window);
 
-        let status = label("Starting…", mtm);
+        let status = label(s.connecting, mtm);
         let qr = NSImageView::new(mtm);
-        let hint = label("Scan with a phone on the same network.", mtm);
+        let hint = label(s.hint_scan, mtm);
 
         let regenerate_target = RegenerateTarget::new(server);
         // Unsafe only because the action selector must exist on the target
         // (it does: `RegenerateTarget`'s `regenerate:`).
         let button = unsafe {
             NSButton::buttonWithTitle_target_action(
-                &NSString::from_str("New code"),
+                &NSString::from_str(s.button_new_code),
                 Some(&regenerate_target),
                 Some(sel!(regenerate:)),
                 mtm,
@@ -121,6 +122,7 @@ impl Content {
     /// dashboard's WebSocket streams) to the widgets. Mirrors
     /// `window.rs::apply_snapshot`.
     pub fn apply_snapshot(&self, json: &str) {
+        let s = crate::i18n::strings();
         let snapshot: serde_json::Value = match serde_json::from_str(json) {
             Ok(v) => v,
             Err(_) => return,
@@ -136,21 +138,17 @@ impl Content {
             .unwrap_or(false);
 
         if connected {
-            set_text(&self.status, "Phone connected");
-            set_text(&self.hint, "Messages you send from the phone appear below.");
+            set_text(&self.status, s.status_connected);
+            set_text(&self.hint, s.hint_connected);
             self.qr.setHidden(true);
         } else {
             self.qr.setHidden(false);
             if reconnecting {
-                set_text(&self.status, "Phone disconnected — waiting to reconnect…");
-                set_text(
-                    &self.hint,
-                    "The same code still works for a bit in case it reconnects on its own; \
-                     scan again if it doesn't.",
-                );
+                set_text(&self.status, s.status_reconnecting);
+                set_text(&self.hint, s.hint_reconnecting);
             } else {
-                set_text(&self.status, "Waiting for a phone to scan the code below");
-                set_text(&self.hint, "Scan with a phone on the same network.");
+                set_text(&self.status, s.status_waiting);
+                set_text(&self.hint, s.hint_scan);
             }
             self.set_qr(&snapshot);
         }

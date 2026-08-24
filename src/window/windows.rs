@@ -53,6 +53,8 @@ struct App {
 /// Runs the Win32 message loop on the calling thread until the window is
 /// closed.
 pub fn run(runtime: Arc<tokio::runtime::Runtime>, server: Arc<PairingServer>) {
+    let s = crate::i18n::strings();
+
     nwg::init().expect("failed to initialize native-windows-gui");
     let _ = nwg::Font::set_global_family("Segoe UI");
 
@@ -82,7 +84,7 @@ pub fn run(runtime: Arc<tokio::runtime::Runtime>, server: Arc<PairingServer>) {
         .expect("failed to build the main window");
 
     nwg::Label::builder()
-        .text("Connecting…")
+        .text(s.connecting)
         .parent(&app.window)
         .build(&mut app.status_label)
         .expect("failed to build the status label");
@@ -104,25 +106,25 @@ pub fn run(runtime: Arc<tokio::runtime::Runtime>, server: Arc<PairingServer>) {
         .expect("failed to build the QR image frame");
 
     nwg::Label::builder()
-        .text("Scan with a phone on the same network.")
+        .text(s.hint_scan)
         .parent(&app.window)
         .build(&mut app.hint_label)
         .expect("failed to build the hint label");
 
     nwg::Button::builder()
-        .text("New code")
+        .text(s.button_new_code)
         .parent(&app.window)
         .build(&mut app.regenerate_button)
         .expect("failed to build the regenerate button");
 
     nwg::Button::builder()
-        .text("Copy last message")
+        .text(s.button_copy_last_message)
         .parent(&app.window)
         .build(&mut app.copy_last_button)
         .expect("failed to build the copy-last-message button");
 
     nwg::Button::builder()
-        .text("Clear history")
+        .text(s.button_clear_history)
         .parent(&app.window)
         .build(&mut app.clear_history_button)
         .expect("failed to build the clear-history button");
@@ -242,6 +244,7 @@ pub fn run(runtime: Arc<tokio::runtime::Runtime>, server: Arc<PairingServer>) {
 }
 
 fn render_snapshot(app: &App) {
+    let s = crate::i18n::strings();
     let json = app.latest_snapshot.lock().unwrap().clone();
     let snapshot: serde_json::Value = match serde_json::from_str(&json) {
         Ok(v) => v,
@@ -258,24 +261,17 @@ fn render_snapshot(app: &App) {
         .unwrap_or(false);
 
     if connected {
-        app.status_label.set_text("Phone connected");
-        app.hint_label
-            .set_text("Messages you send from the phone appear below.");
+        app.status_label.set_text(s.status_connected);
+        app.hint_label.set_text(s.hint_connected);
         app.qr_frame.set_visible(false);
     } else {
         app.qr_frame.set_visible(true);
         if reconnecting {
-            app.status_label
-                .set_text("Phone disconnected — waiting to reconnect…");
-            app.hint_label.set_text(
-                "The same code still works for a bit in case it reconnects on its own; \
-                 scan again if it doesn't.",
-            );
+            app.status_label.set_text(s.status_reconnecting);
+            app.hint_label.set_text(s.hint_reconnecting);
         } else {
-            app.status_label
-                .set_text("Waiting for a phone to scan the code below");
-            app.hint_label
-                .set_text("Scan with a phone on the same network.");
+            app.status_label.set_text(s.status_waiting);
+            app.hint_label.set_text(s.hint_scan);
         }
         set_qr_image(app, &snapshot);
     }
