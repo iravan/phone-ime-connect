@@ -41,12 +41,18 @@ use crate::server::PairingServer;
 
 /// Events routed onto the winit event loop from elsewhere: the global
 /// muda/tray-icon callback handlers (which fire on an OS-owned thread), a
-/// fresh dashboard snapshot from the server's background task, and the
-/// `quit` tray-menu action, which must reach `ActiveEventLoop::exit`.
+/// fresh dashboard snapshot from the server's background task, and a
+/// received message to inject.
 enum UserEvent {
     MenuClicked(MenuId),
     TrayClicked,
     Snapshot(String),
+    /// A message from the phone, to be typed into the focused window. Run on
+    /// the event loop's thread (the process main thread) because macOS's
+    /// text-input APIs, which `enigo` consults to resolve the paste
+    /// keystroke, assert they run there -- calling the injector from the
+    /// server's blocking thread instead aborts the process.
+    Inject(String),
 }
 
 /// Builds a small solid circle as the tray icon. Generated in-process
@@ -98,6 +104,7 @@ fn build_tray_icon(open_id: &MenuId, regenerate_id: &MenuId, quit_id: &MenuId) -
 
 struct App {
     server: Arc<PairingServer>,
+    injector: Arc<Injector>,
     open_id: MenuId,
     regenerate_id: MenuId,
     quit_id: MenuId,
@@ -185,13 +192,77 @@ impl ApplicationHandler<UserEvent> for App {
                     content.apply_snapshot(&json);
                 }
             }
+            UserEvent::Inject(text) => self.injector.type_text(&text),
         }
+    }
+}
+
+/// Requests macOS Accessibility trust, which the synthetic paste keystroke
+/// needs -- without it, delivery silently types nothing. When not already
+/// trusted this pops the system "allow ... to control this computer" dialog
+/// and registers this binary in the Accessibility list. The trust is keyed
+/// to the exact binary, so a rebuild drops a previously-granted permission
+/// (and this prompts again).
+#[cfg(target_os = "macos")]
+fn request_accessibility_trust() {
+    use std::ffi::c_void;
+    use std::ptr;
+
+    #[link(name = "ApplicationServices", kind = "framework")]
+    extern "C" {
+        static kAXTrustedCheckOptionPrompt: *const c_void; // CFStringRef
+        fn AXIsProcessTrustedWithOptions(options: *const c_void) -> bool;
+    }
+    #[link(name = "CoreFoundation", kind = "framework")]
+    extern "C" {
+        static kCFBooleanTrue: *const c_void;
+        static kCFTypeDictionaryKeyCallBacks: c_void;
+        static kCFTypeDictionaryValueCallBacks: c_void;
+        fn CFDictionaryCreate(
+            allocator: *const c_void,
+            keys: *const *const c_void,
+            values: *const *const c_void,
+            num_values: isize,
+            key_callbacks: *const c_void,
+            value_callbacks: *const c_void,
+        ) -> *const c_void;
+        fn CFRelease(cf: *const c_void);
+    }
+
+    // SAFETY: a standard CoreFoundation dictionary of one well-known
+    // CFString key -> CFBoolean value, passed to the documented
+    // AXIsProcessTrustedWithOptions and released right after.
+    let trusted = unsafe {
+        let keys = [kAXTrustedCheckOptionPrompt];
+        let values = [kCFBooleanTrue];
+        let options = CFDictionaryCreate(
+            ptr::null(),
+            keys.as_ptr(),
+            values.as_ptr(),
+            1,
+            &kCFTypeDictionaryKeyCallBacks,
+            &kCFTypeDictionaryValueCallBacks,
+        );
+        let trusted = AXIsProcessTrustedWithOptions(options);
+        CFRelease(options);
+        trusted
+    };
+
+    if trusted {
+        log::info!("macOS Accessibility: trusted -- pasting into other apps is enabled.");
+    } else {
+        log::warn!(
+            "macOS Accessibility: NOT trusted -- approve the permission prompt (or enable \
+             this binary under System Settings > Privacy & Security > Accessibility), then \
+             relaunch. Messages still arrive meanwhile, but typing into other apps does \
+             nothing. (Rebuilding the binary invalidates a previous grant.)"
+        );
     }
 }
 
 /// Starts the pairing server and runs the native window + tray icon's event
 /// loop on the calling thread until "Quit" is chosen. Blocks until then.
-pub fn run(make_callback: fn(Arc<Injector>) -> Arc<dyn Fn(String) + Send + Sync>) {
+pub fn run() {
     let runtime = tokio::runtime::Runtime::new().expect("failed to start the async runtime");
 
     if let Some(url) = runtime.block_on(crate::instance::find_running_instance()) {
@@ -201,16 +272,6 @@ pub fn run(make_callback: fn(Arc<Injector>) -> Arc<dyn Fn(String) + Send + Sync>
         );
         return;
     }
-
-    let injector = Arc::new(Injector::new().expect("failed to initialize keyboard input injector"));
-    let server = Arc::new(
-        runtime
-            .block_on(PairingServer::start(make_callback(injector)))
-            .expect("failed to start pairing server"),
-    );
-
-    log::info!("Dashboard: {}", server.dashboard_url());
-    crate::instance::record_running_instance(&server.dashboard_url());
 
     let mut event_loop_builder = EventLoop::<UserEvent>::with_user_event();
     // Now that a real window is the primary UI, run as a regular app: a
@@ -223,6 +284,27 @@ pub fn run(make_callback: fn(Arc<Injector>) -> Arc<dyn Fn(String) + Send + Sync>
         .build()
         .expect("failed to create the event loop");
     event_loop.set_control_flow(ControlFlow::Wait);
+
+    #[cfg(target_os = "macos")]
+    request_accessibility_trust();
+
+    // The event loop is built before the server so its proxy exists first:
+    // the server invokes `on_message` from a blocking thread, but the
+    // injector must run on this (main) thread, so the message is forwarded
+    // there as a `UserEvent::Inject`.
+    let injector = Arc::new(Injector::new().expect("failed to initialize keyboard input injector"));
+    let inject_proxy = event_loop.create_proxy();
+    let on_message: Arc<dyn Fn(String) + Send + Sync> = Arc::new(move |text: String| {
+        let _ = inject_proxy.send_event(UserEvent::Inject(text));
+    });
+    let server = Arc::new(
+        runtime
+            .block_on(PairingServer::start(on_message))
+            .expect("failed to start pairing server"),
+    );
+
+    log::info!("Dashboard: {}", server.dashboard_url());
+    crate::instance::record_running_instance(&server.dashboard_url());
 
     // tray-icon delivers menu/icon events via global callback handlers
     // (fired from OS-owned threads), not through winit -- forward them onto
@@ -266,6 +348,7 @@ pub fn run(make_callback: fn(Arc<Injector>) -> Arc<dyn Fn(String) + Send + Sync>
 
     let mut app = App {
         server: server.clone(),
+        injector,
         open_id: MenuId::new("show-window"),
         regenerate_id: MenuId::new("regenerate"),
         quit_id: MenuId::new("quit"),
