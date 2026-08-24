@@ -86,6 +86,22 @@ Then:
 cargo run
 ```
 
+**Optional -- a proper icon in the dock/taskbar/Alt-Tab**: GTK4 under
+Wayland has no in-process way to set a window icon; it's resolved
+entirely from a `.desktop` file matched by application ID, not anything
+the app itself can set at runtime. Without one installed, the window
+just gets a generic icon. To fix that:
+
+```sh
+cargo build --release
+./scripts/install-linux-desktop-entry.sh
+```
+
+The icon then applies whether you launch from your app launcher/dock or
+just run the binary directly -- GNOME matches by application ID either
+way. Re-run the script if you move the checkout, since the binary's path
+is baked into the installed entry as-is.
+
 ### Windows / macOS
 
 Uses [`tray-icon`](https://docs.rs/tray-icon) and

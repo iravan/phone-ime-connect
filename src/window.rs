@@ -187,13 +187,50 @@ fn apply_snapshot(
     if let Some(items) = snapshot.get("history").and_then(|v| v.as_array()) {
         for item in items {
             if let Some(text) = item.get("text").and_then(|v| v.as_str()) {
-                let label = Label::new(Some(text));
-                label.set_xalign(0.0);
-                label.set_wrap(true);
-                history_box.append(&label);
+                history_box.append(&build_history_row(text));
             }
         }
     }
+}
+
+/// One history entry: the message text, plus a copy-to-clipboard button
+/// that's only shown while the pointer is over the row -- kept out of the
+/// way otherwise, since it's a rarely-needed convenience, not a primary
+/// action.
+fn build_history_row(text: &str) -> GtkBox {
+    let row = GtkBox::new(Orientation::Horizontal, 6);
+
+    let label = Label::new(Some(text));
+    label.set_xalign(0.0);
+    label.set_wrap(true);
+    label.set_hexpand(true);
+
+    let copy_button = Button::from_icon_name("edit-copy-symbolic");
+    copy_button.set_tooltip_text(Some("Copy to clipboard"));
+    copy_button.add_css_class("flat");
+    copy_button.set_visible(false);
+    {
+        let text = text.to_string();
+        copy_button.connect_clicked(move |button| {
+            button.clipboard().set_text(&text);
+        });
+    }
+
+    row.append(&label);
+    row.append(&copy_button);
+
+    let hover = gtk4::EventControllerMotion::new();
+    {
+        let copy_button = copy_button.clone();
+        hover.connect_enter(move |_, _, _| copy_button.set_visible(true));
+    }
+    {
+        let copy_button = copy_button.clone();
+        hover.connect_leave(move |_| copy_button.set_visible(false));
+    }
+    row.add_controller(hover);
+
+    row
 }
 
 fn set_qr_image(qr_picture: &Picture, snapshot: &serde_json::Value) {

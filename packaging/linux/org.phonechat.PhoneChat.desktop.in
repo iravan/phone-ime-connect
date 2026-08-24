@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=PhoneChat
+Comment=Type on your desktop by texting it from your phone
+Exec=@EXEC@
+Icon=@ICON@
+Terminal=false
+Categories=Utility;
+StartupWMClass=org.phonechat.PhoneChat
