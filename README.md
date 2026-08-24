@@ -126,6 +126,30 @@ WebView2 via [`wry`](https://docs.rs/wry) (bundled with Windows 10+),
 pending a native Win32 dashboard. Either way no extra system packages are
 required -- `cargo run` builds and runs as normal.
 
+**macOS -- build a double-clickable app**: `cargo run` works for
+development, but to get a normal app users can launch from Finder/Dock
+(no terminal), build the bundle:
+
+```sh
+./scripts/build-macos-app.sh   # -> target/release/PhoneInputConnect.app
+```
+
+Move `PhoneInputConnect.app` to `/Applications` (or run it in place).
+Delivering messages into other apps simulates a Cmd+V keystroke, which
+macOS gates behind **Accessibility** permission: the first launch pops a
+"PhoneInputConnect would like to control this computer" prompt -- approve
+it once (System Settings > Privacy & Security > Accessibility) and it
+sticks to the app. Running the bare binary instead (e.g. `cargo run` or
+`./target/.../phone-input-connect`) can't hold that grant on its own; it
+borrows the *launching terminal's* Accessibility permission, so the
+packaged app is the supported way to run it.
+
+**Picking the LAN address**: the QR must encode an address the phone can
+actually reach. The app prefers a physical Wi-Fi/Ethernet interface and
+skips VPN/tunnel interfaces automatically, but if it still guesses wrong
+(unusual multi-interface setups), set `PHONE_INPUT_CONNECT_LAN_IP` to the
+right IPv4 address to override detection.
+
 ## Security
 
 PhoneInputConnect is designed to be safe to run on an ordinary home or office Wi-Fi
