@@ -10,10 +10,13 @@ mod window;
 #[cfg(not(target_os = "linux"))]
 mod tray;
 
+#[cfg(target_os = "linux")]
 use std::sync::Arc;
 
+#[cfg(target_os = "linux")]
 use server::PairingServer;
 
+#[cfg(target_os = "linux")]
 fn on_message_callback(injector: Arc<injector::Injector>) -> Arc<dyn Fn(String) + Send + Sync> {
     Arc::new(move |text: String| injector.type_text(&text))
 }
@@ -53,5 +56,5 @@ fn main() {
 #[cfg(not(target_os = "linux"))]
 fn main() {
     env_logger::init();
-    tray::native::run(on_message_callback);
+    tray::native::run();
 }

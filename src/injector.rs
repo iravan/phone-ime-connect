@@ -17,6 +17,7 @@
 //! measure, so this may silently do nothing -- see the README's "Platform
 //! notes" section.
 
+#[cfg(not(target_os = "macos"))]
 use std::sync::Mutex;
 use std::thread;
 use std::time::Duration;
@@ -33,15 +34,26 @@ const PASTE_MODIFIER: Key = Key::Meta;
 #[cfg(not(target_os = "macos"))]
 const PASTE_MODIFIER: Key = Key::Control;
 
+// macOS's `Enigo` wraps a `CGEventSource`, which is neither `Send` nor
+// `Sync`, so it can't live inside the `Arc<Injector>` that's shared across
+// the server's async tasks. There it's built fresh per message on the
+// blocking thread that delivers it -- cheap enough for human-paced input,
+// and NSPasteboard stores data in the OS pasteboard server, so a
+// short-lived `Clipboard` still restores correctly. Everywhere else the
+// instances are persistent: on X11 in particular, `arboard`'s clipboard
+// must stay alive to keep serving the contents it restored.
+#[cfg(not(target_os = "macos"))]
 struct State {
     enigo: Enigo,
     clipboard: Clipboard,
 }
 
+#[cfg(not(target_os = "macos"))]
 pub struct Injector {
     state: Mutex<State>,
 }
 
+#[cfg(not(target_os = "macos"))]
 impl Injector {
     pub fn new() -> Result<Self, Box<dyn std::error::Error>> {
         Ok(Self {
@@ -59,30 +71,71 @@ impl Injector {
     pub fn type_text(&self, text: &str) {
         let mut state = self.state.lock().unwrap();
         let State { enigo, clipboard } = &mut *state;
+        deliver(enigo, clipboard, text);
+    }
+}
 
-        let previous_clipboard = clipboard.get_text().ok();
+#[cfg(target_os = "macos")]
+pub struct Injector {
+    _private: (),
+}
 
-        if let Err(err) = clipboard.set_text(text.to_string()) {
-            log::warn!("Failed to set the clipboard to paste from: {err}");
-            return;
-        }
+#[cfg(target_os = "macos")]
+impl Injector {
+    pub fn new() -> Result<Self, Box<dyn std::error::Error>> {
+        // Fail fast if input/clipboard access can't be set up at all,
+        // matching the other platforms' construction-time check.
+        Enigo::new(&Settings::default())?;
+        Clipboard::new()?;
+        Ok(Self { _private: () })
+    }
 
-        if let Err(err) = paste(enigo) {
-            log::warn!("Failed to paste text into the focused window: {err}");
-        }
-
-        // Give the target app time to read the clipboard before it's
-        // overwritten again -- pasting is fire-and-forget from here, with
-        // no signal for when the target has actually consumed it.
-        thread::sleep(PASTE_SETTLE_TIME);
-
-        let restore = match previous_clipboard {
-            Some(prev) => clipboard.set_text(prev),
-            None => clipboard.clear(),
+    /// See the non-macOS impl. `Enigo`/`Clipboard` are built per call here
+    /// because they're `!Send` on macOS.
+    pub fn type_text(&self, text: &str) {
+        let mut enigo = match Enigo::new(&Settings::default()) {
+            Ok(enigo) => enigo,
+            Err(err) => {
+                log::warn!("Failed to initialize keyboard input injector: {err}");
+                return;
+            }
         };
-        if let Err(err) = restore {
-            log::warn!("Failed to restore the previous clipboard contents: {err}");
-        }
+        let mut clipboard = match Clipboard::new() {
+            Ok(clipboard) => clipboard,
+            Err(err) => {
+                log::warn!("Failed to access the clipboard: {err}");
+                return;
+            }
+        };
+        deliver(&mut enigo, &mut clipboard, text);
+    }
+}
+
+/// Places `text` on the clipboard, pastes it into the focused window, then
+/// restores the previous clipboard contents.
+fn deliver(enigo: &mut Enigo, clipboard: &mut Clipboard, text: &str) {
+    let previous_clipboard = clipboard.get_text().ok();
+
+    if let Err(err) = clipboard.set_text(text.to_string()) {
+        log::warn!("Failed to set the clipboard to paste from: {err}");
+        return;
+    }
+
+    if let Err(err) = paste(enigo) {
+        log::warn!("Failed to paste text into the focused window: {err}");
+    }
+
+    // Give the target app time to read the clipboard before it's
+    // overwritten again -- pasting is fire-and-forget from here, with
+    // no signal for when the target has actually consumed it.
+    thread::sleep(PASTE_SETTLE_TIME);
+
+    let restore = match previous_clipboard {
+        Some(prev) => clipboard.set_text(prev),
+        None => clipboard.clear(),
+    };
+    if let Err(err) = restore {
+        log::warn!("Failed to restore the previous clipboard contents: {err}");
     }
 }
 
