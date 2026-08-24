@@ -172,6 +172,21 @@ run it. Prebuilt Apple Silicon (arm64) `.app` bundles are attached to
 each tagged [release](../../releases) (see
 `.github/workflows/release-macos.yml`).
 
+**Gatekeeper**: when the release-signing secrets are configured (see the
+workflow header), release builds are Developer ID signed and notarized,
+so a downloaded `.app` opens normally. An *un-notarized* build (an
+ad-hoc `.app`, e.g. one you built yourself or a release cut before
+notarization was set up) is blocked on first open with "Apple could not
+verify ... is free of malware". To open it anyway, strip the download
+quarantine flag:
+
+```sh
+xattr -dr com.apple.quarantine /path/to/PhoneInputConnect.app
+```
+
+(or right-click the app → Open, or approve it under System Settings >
+Privacy & Security > "Open Anyway").
+
 **Picking the LAN address** (any platform): the QR must encode an address
 the phone can actually reach. The app prefers a physical Wi-Fi/Ethernet
 interface and skips VPN/tunnel interfaces automatically, but if it still
