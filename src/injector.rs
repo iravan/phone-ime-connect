@@ -12,10 +12,18 @@
 //! at the cost of briefly overwriting the system clipboard (saved and
 //! restored around each message).
 //!
-//! On Wayland, most compositors block synthetic input (both the clipboard
-//! write and the paste keystroke) from arbitrary clients as a security
-//! measure, so this may silently do nothing -- see the README's "Platform
-//! notes" section.
+//! On Linux, `enigo` is built with both its `xdo` (legacy X11/XTest, via
+//! Xwayland) and `libei` (the `xdg-desktop-portal` RemoteDesktop session)
+//! backends, and tries both on every keystroke. `xdo` alone is silently
+//! blocked by Wayland compositors -- Mutter, for instance, only allows XTest
+//! from whichever client currently holds keyboard focus, which is never
+//! this app -- so `libei` is what actually delivers the paste there, at the
+//! cost of a one-time GNOME "allow remote desktop interaction" consent
+//! dialog the first time a message arrives (see the README's "Platform
+//! notes" section). That handshake is why `Enigo` is created lazily on the
+//! first message rather than at startup: doing it eagerly would block the
+//! window from appearing until that first dialog (which the user has no
+//! context for yet, since the window isn't even up) is answered.
 
 #[cfg(not(target_os = "macos"))]
 use std::sync::Mutex;
@@ -44,7 +52,8 @@ const PASTE_MODIFIER: Key = Key::Control;
 // must stay alive to keep serving the contents it restored.
 #[cfg(not(target_os = "macos"))]
 struct State {
-    enigo: Enigo,
+    /// Lazily created on the first message -- see the module docs.
+    enigo: Option<Enigo>,
     clipboard: Clipboard,
 }
 
@@ -58,7 +67,7 @@ impl Injector {
     pub fn new() -> Result<Self, Box<dyn std::error::Error>> {
         Ok(Self {
             state: Mutex::new(State {
-                enigo: Enigo::new(&Settings::default())?,
+                enigo: None,
                 clipboard: Clipboard::new()?,
             }),
         })
@@ -71,7 +80,25 @@ impl Injector {
     pub fn type_text(&self, text: &str) {
         let mut state = self.state.lock().unwrap();
         let State { enigo, clipboard } = &mut *state;
-        deliver(enigo, clipboard, text);
+
+        if enigo.is_none() {
+            log::info!(
+                "Setting up keyboard input for the first message -- on Wayland this may \
+                 show a one-time \"allow remote desktop interaction\" permission prompt."
+            );
+            match Enigo::new(&Settings::default()) {
+                Ok(e) => *enigo = Some(e),
+                // Left as `None` -- retried on the next message rather
+                // than treated as permanent, since the failure may be
+                // transient (e.g. the portal wasn't up yet).
+                Err(err) => {
+                    log::warn!("Failed to initialize keyboard input: {err}");
+                    return;
+                }
+            }
+        }
+
+        deliver(enigo.as_mut().unwrap(), clipboard, text);
     }
 }
 

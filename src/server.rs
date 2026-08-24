@@ -507,6 +507,7 @@ impl PairingServer {
                  server with no safe address to bind to.",
             )
         })?;
+        log::info!("Phone-facing listener will bind to LAN address {lan_ip}");
 
         let lan_listener = std::net::TcpListener::bind((lan_ip, 0))?;
         lan_listener.set_nonblocking(true)?;
