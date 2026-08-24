@@ -29,8 +29,25 @@ use tokio::sync::broadcast;
 
 use crate::server::PairingServer;
 
+/// Prefixed onto the status line as a cheap, layout-free stand-in for the
+/// colored status dot the Linux window draws as a separate widget --
+/// nwg's plain `Label` has no runtime-settable color (only a build-time
+/// `background_color`, and no text color at all), so recoloring on every
+/// state change would mean destroying and rebuilding the control instead
+/// of just swapping a string. Shape alone still gives an at-a-glance cue:
+/// filled = active, hollow = idle, half = in between.
+const DOT_CONNECTED: &str = "●";
+const DOT_WAITING: &str = "○";
+const DOT_RECONNECTING: &str = "◐";
+
 struct App {
     window: nwg::Window,
+    // GDI resources: like `qr_bitmap` below, the controls that use these
+    // only borrow the handle, so they have to outlive the window rather
+    // than drop at the end of whichever function builds them.
+    icon: nwg::Icon,
+    status_font: nwg::Font,
+    body_font: nwg::Font,
     status_label: nwg::Label,
     qr_frame: nwg::ImageFrame,
     qr_bitmap: RefCell<Option<nwg::Bitmap>>,
@@ -58,8 +75,43 @@ pub fn run(runtime: Arc<tokio::runtime::Runtime>, server: Arc<PairingServer>) {
     nwg::init().expect("failed to initialize native-windows-gui");
     let _ = nwg::Font::set_global_family("Segoe UI");
 
+    // App/title-bar/taskbar icon, decoded from the same PNG asset the
+    // Linux (.desktop) and macOS builds use, via the same WIC decoder the
+    // `image-decoder` feature already enables for the QR bitmap below --
+    // no separate .ico conversion needed. Decoded at 32x32 so it stays
+    // sharp; Windows scales it down further for the title bar itself as
+    // needed. Built before the window so it can be attached straight
+    // through the builder below.
+    let mut icon = nwg::Icon::default();
+    nwg::Icon::builder()
+        .source_bin(Some(include_bytes!("../../assets/icon-256.png")))
+        .size(Some((32, 32)))
+        .build(&mut icon)
+        .expect("failed to build the app icon");
+
+    // A bolder, larger font for the status line, and a slightly larger
+    // one for everything else -- nwg's default GUI font is noticeably
+    // smaller than what the Linux (GTK) and macOS (AppKit) windows use
+    // for the same text.
+    let mut status_font = nwg::Font::default();
+    nwg::Font::builder()
+        .family("Segoe UI")
+        .size(18)
+        .weight(700)
+        .build(&mut status_font)
+        .expect("failed to build the status font");
+    let mut body_font = nwg::Font::default();
+    nwg::Font::builder()
+        .family("Segoe UI")
+        .size(15)
+        .build(&mut body_font)
+        .expect("failed to build the body font");
+
     let mut app = App {
         window: Default::default(),
+        icon,
+        status_font,
+        body_font,
         status_label: Default::default(),
         qr_frame: Default::default(),
         qr_bitmap: RefCell::new(None),
@@ -79,12 +131,17 @@ pub fn run(runtime: Arc<tokio::runtime::Runtime>, server: Arc<PairingServer>) {
         // Tall enough that `qr_frame`'s row-span below actually gets
         // enough of the grid's vertical space -- see the comment there.
         .size((360, 870))
+        // Centered on the primary monitor at launch instead of whatever
+        // default position Windows would otherwise pick.
+        .center(true)
+        .icon(Some(&app.icon))
         .title("PhoneInputConnect")
         .build(&mut app.window)
         .expect("failed to build the main window");
 
     nwg::Label::builder()
         .text(s.connecting)
+        .font(Some(&app.status_font))
         .parent(&app.window)
         .build(&mut app.status_label)
         .expect("failed to build the status label");
@@ -107,30 +164,35 @@ pub fn run(runtime: Arc<tokio::runtime::Runtime>, server: Arc<PairingServer>) {
 
     nwg::Label::builder()
         .text(s.hint_scan)
+        .font(Some(&app.body_font))
         .parent(&app.window)
         .build(&mut app.hint_label)
         .expect("failed to build the hint label");
 
     nwg::Button::builder()
         .text(s.button_new_code)
+        .font(Some(&app.body_font))
         .parent(&app.window)
         .build(&mut app.regenerate_button)
         .expect("failed to build the regenerate button");
 
     nwg::Button::builder()
         .text(s.button_copy_last_message)
+        .font(Some(&app.body_font))
         .parent(&app.window)
         .build(&mut app.copy_last_button)
         .expect("failed to build the copy-last-message button");
 
     nwg::Button::builder()
         .text(s.button_clear_history)
+        .font(Some(&app.body_font))
         .parent(&app.window)
         .build(&mut app.clear_history_button)
         .expect("failed to build the clear-history button");
 
     nwg::TextBox::builder()
         .readonly(true)
+        .font(Some(&app.body_font))
         .parent(&app.window)
         .build(&mut app.history_box)
         .expect("failed to build the history text box");
@@ -143,6 +205,11 @@ pub fn run(runtime: Arc<tokio::runtime::Runtime>, server: Arc<PairingServer>) {
     nwg::GridLayout::builder()
         .parent(&app.window)
         .max_column(Some(2))
+        // A bit more breathing room than GridLayout's tight 5px default
+        // on both counts -- still comfortably inside the headroom the
+        // row/column sizing below already has to spare.
+        .margin([12, 12, 12, 12])
+        .spacing(8)
         .child_item(nwg::GridLayoutItem::new(&app.status_label, 0, 0, 2, 1))
         // Given an 8-row span (out of 18 total rows) in an 870px-tall
         // window, this cell comes out well over 300px tall -- comfortable
@@ -154,7 +221,13 @@ pub fn run(runtime: Arc<tokio::runtime::Runtime>, server: Arc<PairingServer>) {
         .child_item(nwg::GridLayoutItem::new(&app.hint_label, 0, 9, 2, 1))
         .child(0, 10, &app.regenerate_button)
         .child(1, 10, &app.copy_last_button)
-        .child_item(nwg::GridLayoutItem::new(&app.clear_history_button, 0, 11, 2, 1))
+        .child_item(nwg::GridLayoutItem::new(
+            &app.clear_history_button,
+            0,
+            11,
+            2,
+            1,
+        ))
         .child_item(nwg::GridLayoutItem::new(&app.history_box, 0, 12, 2, 6))
         .build(&app.layout)
         .expect("failed to build the window layout");
@@ -261,16 +334,19 @@ fn render_snapshot(app: &App) {
         .unwrap_or(false);
 
     if connected {
-        app.status_label.set_text(s.status_connected);
+        app.status_label
+            .set_text(&format!("{DOT_CONNECTED}  {}", s.status_connected));
         app.hint_label.set_text(s.hint_connected);
         app.qr_frame.set_visible(false);
     } else {
         app.qr_frame.set_visible(true);
         if reconnecting {
-            app.status_label.set_text(s.status_reconnecting);
+            app.status_label
+                .set_text(&format!("{DOT_RECONNECTING}  {}", s.status_reconnecting));
             app.hint_label.set_text(s.hint_reconnecting);
         } else {
-            app.status_label.set_text(s.status_waiting);
+            app.status_label
+                .set_text(&format!("{DOT_WAITING}  {}", s.status_waiting));
             app.hint_label.set_text(s.hint_scan);
         }
         set_qr_image(app, &snapshot);
