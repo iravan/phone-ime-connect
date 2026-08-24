@@ -124,6 +124,12 @@ struct ServerState {
     // (subject to `RECONNECT_GRACE` instead) -- see the module doc.
     paired: Mutex<bool>,
     grace_deadline: Mutex<Option<Instant>>,
+    // Set by `PairingServer::regenerate_token` just before waking
+    // `kick_notify`, so `handle_phone_socket`'s post-loop cleanup can
+    // tell a deliberate kick (skip the reconnect grace window -- the
+    // token's already moved on) apart from an ordinary drop.
+    kicked: Mutex<bool>,
+    kick_notify: Notify,
     history: Mutex<VecDeque<HistoryItem>>,
     rate_limiter: Mutex<RateLimiter>,
     dashboard_tx: broadcast::Sender<String>,
@@ -138,6 +144,23 @@ impl ServerState {
     fn rotate_token(&self) {
         *self.token.lock().unwrap() = new_token();
         *self.token_created_at.lock().unwrap() = Instant::now();
+    }
+
+    /// Immediately invalidates the current code and issues a fresh one,
+    /// kicking whichever phone is connected (if any) so the new code is
+    /// actually usable right away rather than sitting inert behind "only
+    /// one phone may be connected at a time." Shared by the dashboard's
+    /// own "regenerate" WebSocket message and `PairingServer::regenerate_token`.
+    fn force_new_code(&self) {
+        let was_active = *self.active.lock().unwrap();
+        if was_active {
+            *self.kicked.lock().unwrap() = true;
+            self.kick_notify.notify_waiters();
+        }
+        self.rotate_token();
+        *self.grace_deadline.lock().unwrap() = None;
+        *self.paired.lock().unwrap() = false;
+        self.broadcast_dashboard();
     }
 
     fn pairing_url(&self) -> String {
@@ -283,29 +306,57 @@ async fn handle_phone_socket(mut socket: WebSocket, state: Arc<ServerState>) {
         .await;
 
     loop {
-        match socket.recv().await {
-            Some(Ok(Message::Text(text))) => {
-                if !handle_incoming(&mut socket, &state, text).await {
-                    break;
+        tokio::select! {
+            incoming = socket.recv() => {
+                match incoming {
+                    Some(Ok(Message::Text(text))) => {
+                        if !handle_incoming(&mut socket, &state, text).await {
+                            break;
+                        }
+                    }
+                    Some(Ok(Message::Binary(_))) => {
+                        let _ = socket
+                            .send(Message::Close(Some(axum::extract::ws::CloseFrame {
+                                code: 1003,
+                                reason: "binary frames unsupported".into(),
+                            })))
+                            .await;
+                        break;
+                    }
+                    Some(Ok(Message::Close(_))) | None => break,
+                    Some(Ok(_)) => {} // ping/pong: handled automatically by axum
+                    Some(Err(_)) => break,
                 }
             }
-            Some(Ok(Message::Binary(_))) => {
+            _ = state.kick_notify.notified() => {
+                let _ = socket
+                    .send(Message::Text(
+                        serde_json::json!({
+                            "type": "error",
+                            "message": "Disconnected: a new code was generated.",
+                        })
+                        .to_string(),
+                    ))
+                    .await;
                 let _ = socket
                     .send(Message::Close(Some(axum::extract::ws::CloseFrame {
-                        code: 1003,
-                        reason: "binary frames unsupported".into(),
+                        code: 1001,
+                        reason: "a new code was generated".into(),
                     })))
                     .await;
                 break;
             }
-            Some(Ok(Message::Close(_))) | None => break,
-            Some(Ok(_)) => {} // ping/pong: handled automatically by axum
-            Some(Err(_)) => break,
         }
     }
 
     *state.active.lock().unwrap() = false;
-    *state.grace_deadline.lock().unwrap() = Some(Instant::now() + RECONNECT_GRACE);
+    // A deliberate kick (via `PairingServer::regenerate_token`) already
+    // moved the token on -- no grace window to reconnect with a token
+    // that's intentionally dead.
+    let was_kicked = std::mem::take(&mut *state.kicked.lock().unwrap());
+    if !was_kicked {
+        *state.grace_deadline.lock().unwrap() = Some(Instant::now() + RECONNECT_GRACE);
+    }
     state.broadcast_dashboard();
 }
 
@@ -401,8 +452,7 @@ async fn handle_dashboard_socket(mut socket: WebSocket, state: Arc<ServerState>)
                     Some(Ok(Message::Text(text))) => {
                         if let Ok(v) = serde_json::from_str::<serde_json::Value>(&text) {
                             if v.get("type").and_then(|t| t.as_str()) == Some("regenerate") {
-                                state.rotate_token();
-                                state.broadcast_dashboard();
+                                state.force_new_code();
                             }
                         }
                     }
@@ -477,6 +527,8 @@ impl PairingServer {
             active: Mutex::new(false),
             paired: Mutex::new(false),
             grace_deadline: Mutex::new(None),
+            kicked: Mutex::new(false),
+            kick_notify: Notify::new(),
             history: Mutex::new(VecDeque::with_capacity(HISTORY_MAX)),
             rate_limiter: Mutex::new(RateLimiter::default()),
             dashboard_tx,
@@ -583,11 +635,22 @@ impl PairingServer {
     }
 
     pub fn regenerate_token(&self) {
-        self.state.rotate_token();
-        self.state.broadcast_dashboard();
+        self.state.force_new_code();
     }
 
     pub fn dashboard_url(&self) -> String {
         format!("https://127.0.0.1:{}/dashboard", self.state.dash_port)
+    }
+
+    /// The same live-updating status the browser-based dashboard's
+    /// WebSocket streams, for an in-process UI (e.g. the native window on
+    /// Linux) to render without going through HTTP at all. Pair with
+    /// [`Self::dashboard_snapshot`] for the state as of right now.
+    pub fn subscribe_dashboard(&self) -> broadcast::Receiver<String> {
+        self.state.dashboard_tx.subscribe()
+    }
+
+    pub fn dashboard_snapshot(&self) -> String {
+        self.state.dashboard_snapshot_json()
     }
 }

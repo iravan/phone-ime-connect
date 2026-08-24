@@ -2,10 +2,17 @@
 
 Type on your desktop by texting it from your phone.
 
-PhoneChat runs as a small tray-icon app on your computer. It shows a QR
-code; scan it with your phone (same Wi-Fi network, no app install), type a
-message in the browser tab that opens, and it's instantly typed into
-whatever window has focus on your desktop -- as if you'd typed it yourself.
+PhoneChat runs as a small app on your computer. It shows a QR code; scan
+it with your phone (same Wi-Fi network, no app install), type a message in
+the page that opens, and it's instantly typed into whatever window has
+focus on your desktop -- as if you'd typed it yourself.
+
+**Platform status**: on Linux, the QR code/status/history live in a native
+window (see `window.rs`) that opens on launch -- closing it quits the app
+entirely, including the pairing server. Windows and macOS don't have that
+yet and fall back to a tray icon plus a browser tab for the same
+information (see `tray/native.rs`); giving them an equivalent native
+window is follow-up work.
 
 ## Why
 
@@ -17,9 +24,11 @@ account, no cloud service, and no app to install.
 
 ## How it works
 
-1. Launch PhoneChat. It opens a **dashboard** page in your default browser
-   (`https://127.0.0.1:<port>/dashboard`) showing a QR code, and a tray/menu
-   bar icon appears.
+1. Launch PhoneChat. On Linux, a window showing a QR code opens directly.
+   On Windows/macOS (no native window yet), it instead opens a
+   **dashboard** page in your default browser
+   (`https://127.0.0.1:<port>/dashboard`) with the same QR code, plus a
+   tray/menu bar icon.
 2. Scan the QR code with your phone's camera. It opens a chat-style page
    served directly from your computer over your LAN.
 3. Type a message on your phone and hit send. It's echoed back to your
@@ -27,20 +36,23 @@ account, no cloud service, and no app to install.
    focused window by placing it on the clipboard and simulating a paste
    (Ctrl+V, or Cmd+V on macOS) -- your previous clipboard contents are
    restored right after.
-4. The dashboard updates live: it shows "Phone connected" and a rolling
-   history of the last few messages sent.
+4. The window (or dashboard page) updates live: it shows "Phone connected"
+   and a rolling history of the last few messages sent.
 
-Only one phone can be paired at a time. Scanning a new QR code (via the
-tray menu's "New code") invalidates the old one.
+Only one phone can be paired at a time. Scanning a new QR code (the
+window's/dashboard's "New code" button) invalidates the old one.
 
 If the phone's connection drops (screen lock, backgrounded browser tab,
 brief Wi-Fi blip), the same QR code/URL keeps working for about 45 seconds
 in case it reconnects on its own -- no need to re-scan for a short hiccup.
 Past that window, the code is invalidated for good and needs a fresh scan.
 
-Lost the dashboard tab and there's no tray icon to get it back? Just
-launch PhoneChat again -- it detects the already-running instance and
-reopens its dashboard instead of starting a second one.
+On Windows/macOS, if you lose the dashboard tab and there's no tray icon
+to get it back, just launch PhoneChat again -- it detects the
+already-running instance and reopens its dashboard instead of starting a
+second one. (On Linux the window itself *is* the app, so there's nothing
+to lose track of; relaunching while it's already running just logs that
+it's already up rather than trying to bring the existing window forward.)
 
 ## Building and running
 
@@ -48,11 +60,18 @@ Requires a recent Rust toolchain (`cargo build`/`cargo run`).
 
 ### Linux
 
-The tray icon uses [`ksni`](https://docs.rs/ksni), a pure-Rust
-implementation of the StatusNotifierItem D-Bus protocol -- no GTK or other
-system tray development packages are needed to *build*. Typing uses
-[`enigo`](https://docs.rs/enigo), which on X11 links against `libxdo`, so
-that needs to be installed to build and run:
+The window is a native [GTK4](https://docs.rs/gtk4) UI, which needs GTK4's
+development packages to build:
+
+```sh
+# Fedora
+sudo dnf install gtk4-devel
+# Debian/Ubuntu
+sudo apt install libgtk-4-dev
+```
+
+Typing uses [`enigo`](https://docs.rs/enigo) (for the paste keystroke),
+which on X11 links against `libxdo`, so that needs to be installed too:
 
 ```sh
 # Fedora
@@ -128,9 +147,7 @@ network, where other devices are untrusted:
   Unicode keysym trick that most IMEs -- built to interpret real keystrokes
   as composition input, not to accept a pre-composed character outright --
   would silently drop or mangle. Pasting sidesteps that entirely.
-- **GNOME Shell (Linux)**: stock GNOME Shell has no StatusNotifierWatcher
-  running, so no tray icon will appear unless you install the "AppIndicator
-  and KStatusNotifierItem Support" extension. The app still runs and opens
-  the dashboard; only the tray icon (and its "New code"/"Quit" menu) is
-  affected -- quit with Ctrl+C in the terminal, or send the process
-  `SIGINT`, instead.
+- **Windows/macOS don't have the native window yet**: they still use the
+  tray icon + browser dashboard from before (`tray/native.rs`), including
+  whatever tray-icon-visibility quirks that platform has. This is a
+  temporary gap, not an intended long-term difference.

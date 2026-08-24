@@ -4,6 +4,10 @@ mod lan;
 mod qr;
 mod server;
 mod tls;
+#[cfg(target_os = "linux")]
+mod window;
+
+#[cfg(not(target_os = "linux"))]
 mod tray;
 
 use std::sync::Arc;
@@ -15,70 +19,35 @@ fn on_message_callback(injector: Arc<injector::Injector>) -> Arc<dyn Fn(String) 
 }
 
 #[cfg(target_os = "linux")]
-#[tokio::main]
-async fn main() {
+fn main() {
     env_logger::init();
 
-    if let Some(url) = instance::find_running_instance().await {
-        log::info!("PhoneChat is already running; opening its dashboard: {url}");
-        let _ = webbrowser::open(&url);
+    let runtime =
+        Arc::new(tokio::runtime::Runtime::new().expect("failed to start the async runtime"));
+
+    if let Some(url) = runtime.block_on(instance::find_running_instance()) {
+        log::info!(
+            "PhoneChat is already running; its dashboard is at {url} if you need it, \
+             but its window should already be on screen."
+        );
         return;
     }
 
     let injector =
         Arc::new(injector::Injector::new().expect("failed to initialize keyboard input injector"));
     let server = Arc::new(
-        PairingServer::start(on_message_callback(injector))
-            .await
+        runtime
+            .block_on(PairingServer::start(on_message_callback(injector)))
             .expect("failed to start pairing server"),
     );
 
     log::info!("Dashboard: {}", server.dashboard_url());
     instance::record_running_instance(&server.dashboard_url());
-    if webbrowser::open(&server.dashboard_url()).is_err() {
-        log::warn!("Could not open a browser automatically; open the dashboard URL by hand.");
-    }
 
-    let quit_notify = Arc::new(tokio::sync::Notify::new());
-    let callbacks = {
-        let server = server.clone();
-        let quit_notify_for_quit = quit_notify.clone();
-        tray::TrayCallbacks {
-            open_dashboard: Box::new({
-                let server = server.clone();
-                move || {
-                    let _ = webbrowser::open(&server.dashboard_url());
-                }
-            }),
-            regenerate: Box::new(move || server.regenerate_token()),
-            quit: Box::new(move || quit_notify_for_quit.notify_waiters()),
-        }
-    };
-    // A missing tray icon (e.g. stock GNOME Shell has no
-    // StatusNotifierWatcher unless the user installs an extension -- see
-    // the README's "Platform notes") shouldn't take down an otherwise
-    // working pairing server: fall back to running headless, quittable
-    // with Ctrl+C, rather than failing outright.
-    let tray_handle = match tray::linux::spawn(callbacks).await {
-        Ok(handle) => Some(handle),
-        Err(err) => {
-            log::warn!(
-                "Could not start the tray icon ({err}); running without one. \
-                 Use the dashboard's \"New code\" button and Ctrl+C to quit."
-            );
-            None
-        }
-    };
+    // Blocks until the window is closed.
+    window::run(runtime.clone(), server.clone());
 
-    tokio::select! {
-        _ = quit_notify.notified() => {}
-        _ = tokio::signal::ctrl_c() => {}
-    }
-
-    if let Some(tray_handle) = tray_handle {
-        tray_handle.shutdown().await;
-    }
-    server.stop().await;
+    runtime.block_on(server.stop());
 }
 
 #[cfg(not(target_os = "linux"))]

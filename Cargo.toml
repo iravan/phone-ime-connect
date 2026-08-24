@@ -19,17 +19,17 @@ arboard = "3"
 directories = "5"
 log = "0.4"
 env_logger = "0.11"
-webbrowser = "1"
 
-# Tray icon backend is platform-specific: ksni implements the
-# StatusNotifierItem D-Bus protocol directly in pure Rust, needing no
-# system dev packages to build (unlike tray-icon's Linux backend, which
-# needs glib2-devel/gtk3-devel at build time -- see README). Windows and
-# macOS use tray-icon's native Win32/Cocoa backends instead, which have no
-# such system-package requirement on those platforms.
+# The primary UI is a native window built on each platform's own toolkit
+# (see the README's "Platform notes" -- Windows/macOS don't have their
+# native window implemented yet and fall back to a tray icon + browser
+# tab in the meantime, hence webbrowser/tray-icon/winit staying
+# non-Linux-only below).
 [target.'cfg(target_os = "linux")'.dependencies]
-ksni = "0.3"
+gtk4 = { version = "0.11", features = ["v4_8"] }
+async-channel = "2"
 
 [target.'cfg(not(target_os = "linux"))'.dependencies]
+webbrowser = "1"
 tray-icon = "0.19"
 winit = "0.30"
