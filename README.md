@@ -100,6 +100,14 @@ network, where other devices are untrusted:
   may silently do nothing even though the phone shows the message as
   delivered. This is a compositor policy, not something PhoneChat can work
   around; X11 and Xwayland sessions are unaffected.
+- **Non-Latin text (CJK, etc.) on Linux/X11**: typing works by simulating
+  individual keypresses (via `libxdo`), which types Latin text reliably but
+  can silently drop or mangle Chinese/Japanese/Korean and other non-Latin
+  characters -- most IMEs only recognize real keyboard scancodes or proper
+  IME composition events, not synthetic Unicode keypresses. This fails
+  quietly, with the phone still showing the message as delivered. There's
+  no code-level fix for this short of switching the injection mechanism
+  entirely (e.g. clipboard + simulated paste instead of keystrokes).
 - **GNOME Shell (Linux)**: stock GNOME Shell has no StatusNotifierWatcher
   running, so no tray icon will appear unless you install the "AppIndicator
   and KStatusNotifierItem Support" extension. The app still runs and opens
