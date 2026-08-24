@@ -1,4 +1,5 @@
 mod injector;
+mod instance;
 mod lan;
 mod qr;
 mod server;
@@ -18,6 +19,12 @@ fn on_message_callback(injector: Arc<injector::Injector>) -> Arc<dyn Fn(String) 
 async fn main() {
     env_logger::init();
 
+    if let Some(url) = instance::find_running_instance().await {
+        log::info!("PhoneChat is already running; opening its dashboard: {url}");
+        let _ = webbrowser::open(&url);
+        return;
+    }
+
     let injector =
         Arc::new(injector::Injector::new().expect("failed to initialize keyboard input injector"));
     let server = Arc::new(
@@ -27,6 +34,7 @@ async fn main() {
     );
 
     log::info!("Dashboard: {}", server.dashboard_url());
+    instance::record_running_instance(&server.dashboard_url());
     if webbrowser::open(&server.dashboard_url()).is_err() {
         log::warn!("Could not open a browser automatically; open the dashboard URL by hand.");
     }

@@ -89,6 +89,13 @@
       statusEl.className = 'ok';
       qrEl.hidden = true;
       qrHintEl.textContent = 'Messages you send from the phone appear below.';
+    } else if (snapshot.reconnecting) {
+      statusEl.textContent = 'Phone disconnected — waiting to reconnect';
+      statusEl.className = 'warn';
+      qrEl.src = snapshot.qr_data_uri;
+      qrEl.hidden = false;
+      qrHintEl.textContent = 'The same code still works for a bit in case ' +
+        'it reconnects on its own; scan again if it doesn’t.';
     } else {
       statusEl.textContent = 'Waiting for a phone to scan the code below';
       statusEl.className = 'warn';

@@ -33,6 +33,15 @@ account, no cloud service, and no app to install.
 Only one phone can be paired at a time. Scanning a new QR code (via the
 tray menu's "New code") invalidates the old one.
 
+If the phone's connection drops (screen lock, backgrounded browser tab,
+brief Wi-Fi blip), the same QR code/URL keeps working for about 45 seconds
+in case it reconnects on its own -- no need to re-scan for a short hiccup.
+Past that window, the code is invalidated for good and needs a fresh scan.
+
+Lost the dashboard tab and there's no tray icon to get it back? Just
+launch PhoneChat again -- it detects the already-running instance and
+reopens its dashboard instead of starting a second one.
+
 ## Building and running
 
 Requires a recent Rust toolchain (`cargo build`/`cargo run`).
@@ -79,10 +88,13 @@ network, where other devices are untrusted:
   behind it, your phone's browser will show a one-time "connection is not
   private" warning -- click through it once per phone.
 - Pairing is gated by a single 256-bit random token embedded in the QR
-  code's URL. It's unguessable, and is rotated the instant a phone
+  code's URL. It's unguessable, and is rotated the instant a phone *first*
   successfully connects, so a QR code can't be reused to open a second,
   competing session. It also expires on its own after 5 minutes if nothing
-  ever connects.
+  ever connects. A *disconnect*, by contrast, doesn't rotate the token
+  immediately -- it opens a ~45-second grace window where the same token
+  still works, so a phone tab surviving a brief drop can reconnect without
+  a new scan; the token only rotates for real once that window elapses.
 - Only one phone may be connected at a time.
 - Repeated failed-token requests from a given source IP are rate-limited
   (defense in depth against scanning or log-spam, not against

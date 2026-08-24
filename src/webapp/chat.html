@@ -139,44 +139,70 @@
   }
 
   var wsProto = (location.protocol === 'https:') ? 'wss://' : 'ws://';
-  var ws = new WebSocket(wsProto + location.host + location.pathname + '/ws');
+  var wsUrl = wsProto + location.host + location.pathname + '/ws';
   var pending = [];
 
-  ws.addEventListener('open', function () {
-    setStatus('ok', 'Connected');
-  });
+  // The desktop keeps this same token usable for a short grace window
+  // after a drop, so a background/lock/brief-Wi-Fi-blip can reconnect
+  // silently. RECONNECT_RETRY_MS/RECONNECT_GIVE_UP_MS mirror the
+  // server's RECONNECT_GRACE (server.rs) with a little headroom; past
+  // that, the token really has rotated and only a fresh scan will do.
+  var RECONNECT_RETRY_MS = 3000;
+  var RECONNECT_GIVE_UP_MS = 60000;
+  var reconnectDeadline = null;
+  var ws;
 
-  ws.addEventListener('close', function () {
-    setStatus('err', 'Disconnected — ask the desktop for a new code');
-    sendBtn.disabled = true;
-    input.disabled = true;
-  });
+  function connect() {
+    ws = new WebSocket(wsUrl);
 
-  ws.addEventListener('error', function () {
-    setStatus('err', 'Connection error');
-  });
+    ws.addEventListener('open', function () {
+      reconnectDeadline = null;
+      setStatus('ok', 'Connected');
+      sendBtn.disabled = false;
+      input.disabled = false;
+    });
 
-  ws.addEventListener('message', function (event) {
-    var msg;
-    try {
-      msg = JSON.parse(event.data);
-    } catch (e) {
-      return;
-    }
-    if (msg.type === 'history') {
-      (msg.items || []).forEach(function (item) {
-        addBubble('mine', item.text, 'sent');
-      });
-    } else if (msg.type === 'ack') {
-      if (pending.length) {
-        var bubble = pending.shift();
-        var tick = bubble.querySelector('.tick');
-        if (tick) { tick.textContent = 'delivered'; }
+    ws.addEventListener('close', function () {
+      if (reconnectDeadline === null) {
+        reconnectDeadline = Date.now() + RECONNECT_GIVE_UP_MS;
       }
-    } else if (msg.type === 'error') {
-      addBubble('system', msg.message || 'Error');
-    }
-  });
+      sendBtn.disabled = true;
+      input.disabled = true;
+      if (Date.now() < reconnectDeadline) {
+        setStatus('warn', 'Disconnected — reconnecting…');
+        setTimeout(connect, RECONNECT_RETRY_MS);
+      } else {
+        setStatus('err', 'Disconnected — ask the desktop for a new code');
+      }
+    });
+
+    ws.addEventListener('error', function () {
+      setStatus('err', 'Connection error');
+    });
+
+    ws.addEventListener('message', function (event) {
+      var msg;
+      try {
+        msg = JSON.parse(event.data);
+      } catch (e) {
+        return;
+      }
+      if (msg.type === 'history') {
+        (msg.items || []).forEach(function (item) {
+          addBubble('mine', item.text, 'sent');
+        });
+      } else if (msg.type === 'ack') {
+        if (pending.length) {
+          var bubble = pending.shift();
+          var tick = bubble.querySelector('.tick');
+          if (tick) { tick.textContent = 'delivered'; }
+        }
+      } else if (msg.type === 'error') {
+        addBubble('system', msg.message || 'Error');
+      }
+    });
+  }
+  connect();
 
   form.addEventListener('submit', function (event) {
     event.preventDefault();

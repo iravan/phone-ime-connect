@@ -12,10 +12,15 @@
 //! - TLS (self-signed, see `tls.rs`) encrypts the LAN hop.
 //! - A single 256-bit random token, embedded in the URL path, gates both
 //!   the HTML page and the WebSocket upgrade. It is unguessable and
-//!   immediately rotated the moment a phone successfully connects, so a
-//!   QR code, once used, cannot be reused to open a second, competing
-//!   session -- and it also expires on its own (`TOKEN_TTL`) if nothing
-//!   ever connects.
+//!   immediately rotated the first time a phone successfully connects, so
+//!   a QR code, once used, cannot be reused to open a second, competing
+//!   session. It also expires on its own (`TOKEN_TTL`) if nothing ever
+//!   connects. Once a phone has paired, a *disconnect* doesn't rotate the
+//!   token immediately either -- it starts a short `RECONNECT_GRACE`
+//!   window where the same token still works, so a phone browser tab
+//!   surviving a brief network drop or backgrounding can reconnect
+//!   without a fresh QR scan. The token only rotates for real once that
+//!   window elapses with no reconnect.
 //! - Only one phone may be connected at a time.
 //! - Failed-token requests are rate-limited per source IP (defense in
 //!   depth against scanning/log-spam, not against brute-forcing 256 bits,
@@ -55,6 +60,7 @@ use crate::{lan, qr, tls};
 const MAX_MESSAGE_LEN: usize = 2000;
 const HISTORY_MAX: usize = 10;
 const TOKEN_TTL: Duration = Duration::from_secs(5 * 60);
+const RECONNECT_GRACE: Duration = Duration::from_secs(45);
 const RATE_LIMIT_MAX_ATTEMPTS: usize = 20;
 const RATE_LIMIT_WINDOW: Duration = Duration::from_secs(60);
 const RATE_LIMIT_BLOCK: Duration = Duration::from_secs(5 * 60);
@@ -112,6 +118,12 @@ struct ServerState {
     token: Mutex<String>,
     token_created_at: Mutex<Instant>,
     active: Mutex<bool>,
+    // Whether the current token has ever been used to successfully pair.
+    // Distinguishes "fresh QR, never scanned" (subject to `TOKEN_TTL`)
+    // from "a phone paired and is now within its reconnect grace window"
+    // (subject to `RECONNECT_GRACE` instead) -- see the module doc.
+    paired: Mutex<bool>,
+    grace_deadline: Mutex<Option<Instant>>,
     history: Mutex<VecDeque<HistoryItem>>,
     rate_limiter: Mutex<RateLimiter>,
     dashboard_tx: broadcast::Sender<String>,
@@ -139,12 +151,14 @@ impl ServerState {
 
     fn dashboard_snapshot_json(&self) -> String {
         let connected = *self.active.lock().unwrap();
+        let reconnecting = self.grace_deadline.lock().unwrap().is_some();
         let history: Vec<HistoryItem> = self.history.lock().unwrap().iter().cloned().collect();
         let pairing_url = self.pairing_url();
         let qr_data_uri = qr::build_data_uri(&pairing_url);
         serde_json::json!({
             "type": "snapshot",
             "connected": connected,
+            "reconnecting": reconnecting,
             "pairing_url": pairing_url,
             "qr_data_uri": qr_data_uri,
             "history": history,
@@ -240,7 +254,25 @@ async fn handle_phone_socket(mut socket: WebSocket, state: Arc<ServerState>) {
             .await;
         return;
     }
-    state.rotate_token();
+
+    // This connection means the phone is back, whether it's the very
+    // first pairing or a reconnect within the grace window -- either way,
+    // there's no more pending expiry to apply.
+    *state.grace_deadline.lock().unwrap() = None;
+    let is_first_pairing = {
+        let mut paired = state.paired.lock().unwrap();
+        let was_paired = *paired;
+        *paired = true;
+        !was_paired
+    };
+    if is_first_pairing {
+        // Burn the QR the instant it's used, so a photo of it (or anyone
+        // else who saw the screen) can't open a second, competing
+        // session. A grace-window reconnect skips this: rotating here
+        // too would invalidate the token this same tab already has,
+        // forcing a fresh scan on the very next drop.
+        state.rotate_token();
+    }
     state.broadcast_dashboard();
 
     let history: Vec<HistoryItem> = state.history.lock().unwrap().iter().cloned().collect();
@@ -273,7 +305,7 @@ async fn handle_phone_socket(mut socket: WebSocket, state: Arc<ServerState>) {
     }
 
     *state.active.lock().unwrap() = false;
-    state.rotate_token();
+    *state.grace_deadline.lock().unwrap() = Some(Instant::now() + RECONNECT_GRACE);
     state.broadcast_dashboard();
 }
 
@@ -443,6 +475,8 @@ impl PairingServer {
             token: Mutex::new(new_token()),
             token_created_at: Mutex::new(Instant::now()),
             active: Mutex::new(false),
+            paired: Mutex::new(false),
+            grace_deadline: Mutex::new(None),
             history: Mutex::new(VecDeque::with_capacity(HISTORY_MAX)),
             rate_limiter: Mutex::new(RateLimiter::default()),
             dashboard_tx,
@@ -484,10 +518,28 @@ impl PairingServer {
             tokio::spawn(async move {
                 loop {
                     tokio::select! {
-                        _ = tokio::time::sleep(Duration::from_secs(30)) => {
-                            let active = *state.active.lock().unwrap();
-                            let age = state.token_created_at.lock().unwrap().elapsed();
-                            if !active && age >= TOKEN_TTL {
+                        // Polled fairly often (rather than e.g. every 30s)
+                        // so RECONNECT_GRACE's expiry stays reasonably
+                        // tight -- TOKEN_TTL is five minutes either way,
+                        // so checking it this often costs nothing.
+                        _ = tokio::time::sleep(Duration::from_secs(5)) => {
+                            let should_rotate = {
+                                let active = *state.active.lock().unwrap();
+                                if active {
+                                    false
+                                } else if *state.paired.lock().unwrap() {
+                                    // Paired, then dropped: only expire once
+                                    // the reconnect grace window has passed.
+                                    let deadline = *state.grace_deadline.lock().unwrap();
+                                    matches!(deadline, Some(d) if Instant::now() >= d)
+                                } else {
+                                    // Never paired: expire an idle, unused QR.
+                                    state.token_created_at.lock().unwrap().elapsed() >= TOKEN_TTL
+                                }
+                            };
+                            if should_rotate {
+                                *state.paired.lock().unwrap() = false;
+                                *state.grace_deadline.lock().unwrap() = None;
                                 state.rotate_token();
                                 state.broadcast_dashboard();
                             }

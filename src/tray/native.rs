@@ -141,6 +141,12 @@ impl ApplicationHandler<UserEvent> for App {
 pub fn run(make_callback: fn(Arc<Injector>) -> Arc<dyn Fn(String) + Send + Sync>) {
     let runtime = tokio::runtime::Runtime::new().expect("failed to start the async runtime");
 
+    if let Some(url) = runtime.block_on(crate::instance::find_running_instance()) {
+        log::info!("PhoneChat is already running; opening its dashboard: {url}");
+        let _ = webbrowser::open(&url);
+        return;
+    }
+
     let injector = Arc::new(Injector::new().expect("failed to initialize keyboard input injector"));
     let server = Arc::new(
         runtime
@@ -149,6 +155,7 @@ pub fn run(make_callback: fn(Arc<Injector>) -> Arc<dyn Fn(String) + Send + Sync>
     );
 
     log::info!("Dashboard: {}", server.dashboard_url());
+    crate::instance::record_running_instance(&server.dashboard_url());
     if webbrowser::open(&server.dashboard_url()).is_err() {
         log::warn!("Could not open a browser automatically; open the dashboard URL by hand.");
     }
