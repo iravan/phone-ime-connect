@@ -32,7 +32,30 @@ async-channel = "2"
 [target.'cfg(not(target_os = "linux"))'.dependencies]
 tray-icon = "0.19"
 winit = "0.30"
-# Windows/macOS native window: an embedded webview (WKWebView / WebView2)
-# rendering the dashboard, driven in-process via its IPC bridge -- no
-# external browser, no loopback HTTP round-trip.
+
+# macOS native window: the dashboard rendered with AppKit widgets
+# (NSStackView of NSTextField / NSImageView / NSButton) via objc2, fed by
+# the same in-process JSON snapshots the Linux GTK window uses. objc2's
+# own version is independent of winit's -- they meet only at the raw
+# NSView pointer, which is binding-version-agnostic.
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+objc2-foundation = { version = "0.3", features = ["NSString", "NSData", "NSGeometry"] }
+objc2-app-kit = { version = "0.3", features = [
+    "NSResponder",
+    "NSView",
+    "NSControl",
+    "NSTextField",
+    "NSButton",
+    "NSImageView",
+    "NSImage",
+    "NSStackView",
+    "NSCell",
+    "NSLayoutConstraint",
+    "NSUserInterfaceLayout",
+] }
+
+# Windows native window still hosts an embedded WebView2 (via wry) rendering
+# the dashboard; a native Win32 dashboard is follow-up work.
+[target.'cfg(windows)'.dependencies]
 wry = "0.56"

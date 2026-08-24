@@ -4,14 +4,14 @@
 //! Cocoa run loop on macOS specifically has to pump on the main thread; see
 //! the module-level note in `tray/mod.rs`).
 //!
-//! The window hosts an embedded webview (`wry`: WKWebView on macOS,
-//! WebView2 on Windows) rendering the dashboard. Unlike a real browser tab,
-//! it takes no network connection: the loopback server's self-signed TLS
-//! cert can't be clicked through inside an embedded webview, so instead the
-//! same in-process snapshot stream the Linux window uses
-//! (`PairingServer::subscribe_dashboard`) is pushed straight into the page
-//! via `evaluate_script`, and the "New code" button posts back over wry's
-//! IPC bridge. No external browser is opened.
+//! The window shows the dashboard using each platform's own toolkit,
+//! wrapped behind a common `Content` type: native AppKit widgets on macOS
+//! (`appkit_dashboard.rs`), an embedded webview on Windows
+//! (`webview_dashboard.rs`). Either way it takes no network connection --
+//! the same in-process snapshot stream the Linux window uses
+//! (`PairingServer::subscribe_dashboard`) is pushed straight into the
+//! widgets, and the "New code" button calls back in-process. No external
+//! browser is opened.
 //!
 //! Because the event loop owns this thread, the pairing server instead
 //! runs on a background Tokio runtime: it's started with one `block_on`
@@ -31,12 +31,13 @@ use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 #[cfg(target_os = "macos")]
 use winit::platform::macos::{ActivationPolicy, EventLoopBuilderExtMacOS};
 use winit::window::{Window, WindowId};
-use wry::WebViewBuilder;
 
+#[cfg(target_os = "macos")]
+use super::appkit_dashboard::Content;
+#[cfg(all(not(target_os = "linux"), not(target_os = "macos")))]
+use super::webview_dashboard::Content;
 use crate::injector::Injector;
 use crate::server::PairingServer;
-
-const WINDOW_HTML: &str = include_str!("../webapp/window.html");
 
 /// Events routed onto the winit event loop from elsewhere: the global
 /// muda/tray-icon callback handlers (which fire on an OS-owned thread), a
@@ -95,20 +96,15 @@ fn build_tray_icon(open_id: &MenuId, regenerate_id: &MenuId, quit_id: &MenuId) -
         .expect("failed to create the tray icon")
 }
 
-/// Wraps a dashboard-snapshot JSON object in the JS call that renders it.
-fn render_call(snapshot_json: &str) -> String {
-    format!("window.__render({snapshot_json});")
-}
-
 struct App {
     server: Arc<PairingServer>,
     open_id: MenuId,
     regenerate_id: MenuId,
     quit_id: MenuId,
-    // `webview` borrows the native handle of `window`, so it must be dropped
-    // first: struct fields drop in declaration order, so it's declared
-    // first. Both are `None` until the event loop's first `resumed`.
-    webview: Option<wry::WebView>,
+    // The dashboard content may hold a handle into `window` (the webview
+    // does), so it must drop first: struct fields drop in declaration
+    // order. Both are `None` until the event loop's first `resumed`.
+    content: Option<Content>,
     window: Option<Window>,
     // Held for as long as the icon should stay visible; dropping it removes
     // the icon.
@@ -147,22 +143,12 @@ impl ApplicationHandler<UserEvent> for App {
                 )
                 .expect("failed to create the native window");
 
-            let server = self.server.clone();
-            let webview = WebViewBuilder::new()
-                .with_html(WINDOW_HTML)
-                .with_ipc_handler(move |req| {
-                    if req.body().as_str() == "regenerate" {
-                        server.regenerate_token();
-                    }
-                })
-                .build(&window)
-                .expect("failed to create the dashboard webview");
-
+            let content = Content::create(&window, self.server.clone());
             // Paint the current state right away; later changes arrive as
             // `UserEvent::Snapshot`.
-            let _ = webview.evaluate_script(&render_call(&self.server.dashboard_snapshot()));
+            content.apply_snapshot(&self.server.dashboard_snapshot());
 
-            self.webview = Some(webview);
+            self.content = Some(content);
             self.window = Some(window);
         }
     }
@@ -195,8 +181,8 @@ impl ApplicationHandler<UserEvent> for App {
                 }
             }
             UserEvent::Snapshot(json) => {
-                if let Some(webview) = &self.webview {
-                    let _ = webview.evaluate_script(&render_call(&json));
+                if let Some(content) = &self.content {
+                    content.apply_snapshot(&json);
                 }
             }
         }
@@ -283,7 +269,7 @@ pub fn run(make_callback: fn(Arc<Injector>) -> Arc<dyn Fn(String) + Send + Sync>
         open_id: MenuId::new("show-window"),
         regenerate_id: MenuId::new("regenerate"),
         quit_id: MenuId::new("quit"),
-        webview: None,
+        content: None,
         window: None,
         tray_icon: None,
     };
