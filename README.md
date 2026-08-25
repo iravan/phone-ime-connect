@@ -65,6 +65,24 @@ private, and make it work into *any* app on *any* desktop OS. The tool should be
 invisible -- the phone's keyboard is the product; this just carries its output
 across the room.
 
+**Who this is for:**
+
+- **CJK / complex-script users** who type Chinese, Japanese, Korean, Thai, etc.
+  far more comfortably on their phone's handwriting/stroke/voice IME than through
+  a desktop input method.
+- **Heavy phone typists** with years of swipe/prediction muscle memory who are
+  simply faster on their phone than on a physical keyboard.
+- **Voice-input users** who want to dictate into any desktop app using their
+  phone's superior speech-to-text.
+- **Accessibility users** for whom a touch keyboard, handwriting, or voice is
+  easier than a desktop keyboard, or who type more comfortably one-handed or
+  away from the desk.
+- **Privacy-conscious and cross-ecosystem users** who want a local, no-account
+  tool that works between *any* phone and *any* desktop OS, not a feature locked
+  to one vendor's devices.
+- **Tinkerers and tech-savvy users** who prefer a small, inspectable
+  open-source utility they can run with zero setup.
+
 **Where this sits in the bigger picture.** The core idea -- using your phone as
 a wireless input method (an IME digitizer or a direct text relay) -- is no
 longer exotic; it's becoming a standard ecosystem feature. Major platform
