@@ -73,6 +73,9 @@ normal and each has a quick fix. Screenshots show exactly what you'll see.
 
 ### 1. Windows: "Windows protected your PC"
 
+<details>
+<summary>Show fix &amp; screenshots</summary>
+
 **When:** the very first time you run the downloaded `.exe`.
 **Why:** the app is unsigned, so Windows SmartScreen warns about any new,
 downloaded program from an unknown publisher — it's not about this app
@@ -86,7 +89,12 @@ specifically.
 **Fix:** click **More info**, then the **Run anyway** button that appears.
 (Alternatively: right-click the file → **Properties** → tick **Unblock** → **OK**.)
 
+</details>
+
 ### 2. macOS: won't open — "Apple could not verify…" or "app is damaged"
+
+<details>
+<summary>Show fix &amp; screenshots</summary>
 
 **When:** first time you open a downloaded `.app`.
 **Why:** the current release builds are **ad-hoc signed, not notarized** (the
@@ -123,7 +131,12 @@ right-click the app → **Open** → **Open**.
 <img src="docs/screenshots/mac-warning-2.png" width="704" alt="mac Step 2">
 <img src="docs/screenshots/mac-warning-3.png" width="250" alt="mac Step 3">
 
+</details>
+
 ### 3. macOS: messages arrive but nothing gets typed
+
+<details>
+<summary>Show fix &amp; screenshots</summary>
 
 **When:** after connecting, the phone shows the message delivered but no text
 appears on the computer.
@@ -138,7 +151,12 @@ Privacy & Security → Accessibility**.
 <img src="docs/screenshots/mac-warning-5.png" width="457" alt="mac Step 5">
 <img src="docs/screenshots/mac-warning-6.png" width="705" alt="mac Step 6">
 
+</details>
+
 ### 4. Phone: "Your connection is not private"
+
+<details>
+<summary>Show fix &amp; screenshots</summary>
 
 **When:** right after scanning the QR code, in the phone's browser.
 **Why:** the link is encrypted with a certificate your computer generated
@@ -150,7 +168,12 @@ per phone.
 <img src="docs/screenshots/connect-warning-1.jpg" width="588" alt="Connect warning 1">
 <img src="docs/screenshots/connect-warning-2.jpg" width="588" alt="Connect warning 2">
 
+</details>
+
 ### 5. Phone can't open the page at all
+
+<details>
+<summary>Show fix</summary>
 
 **When:** the QR scans but the page never loads, or times out.
 **Why:** the phone and computer aren't on the same network, or the QR encodes
@@ -164,7 +187,12 @@ the wrong address.
   variable `PHONE_INPUT_CONNECT_LAN_IP` to it before launching, e.g.
   `PHONE_INPUT_CONNECT_LAN_IP=192.168.1.42`.
 
+</details>
+
 ### 6. Linux/Wayland: typing silently does nothing
+
+<details>
+<summary>Show fix</summary>
 
 **When:** on Linux, the message is "delivered" but no text appears.
 **Why:** many Wayland desktops block apps from simulating keystrokes as a
@@ -174,11 +202,16 @@ security measure — nothing this app can override.
 **Ctrl+V** yourself in the target window. (Some GNOME setups also show a
 one-time "allow remote desktop interaction" prompt the first time; allow it.)
 
+</details>
+
 > **Adding the screenshots:** the images above live in `docs/screenshots/`.
 > That folder's `README.md` lists exactly what each screenshot should capture —
 > drop the PNGs in with the matching filenames and they'll render here.
 
 ## How it works
+
+<details>
+<summary>Show the message flow &amp; details</summary>
 
 ```mermaid
 sequenceDiagram
@@ -237,11 +270,16 @@ that it's already up rather than starting a second one or bringing the
 existing window forward. (On macOS, where closing hides the window rather
 than quitting, the menu-bar icon's "Show window" brings it back.)
 
+</details>
+
 ## Building and running
 
 Requires a recent Rust toolchain (`cargo build`/`cargo run`).
 
 ### Linux
+
+<details>
+<summary>Show Linux build steps</summary>
 
 The window is a native [GTK4](https://docs.rs/gtk4) UI (GTK 4.6 or newer),
 which needs GTK4's development packages to build:
@@ -308,7 +346,12 @@ x86_64 Ubuntu GitHub Actions runner and the `.rpm` inside an actual
 Fedora container, so each package's automatic dependency detection
 reflects its own ecosystem's real conventions).
 
+</details>
+
 ### Windows
+
+<details>
+<summary>Show Windows build steps</summary>
 
 The window is a native [`native-windows-gui`](https://docs.rs/native-windows-gui)
 (Win32) UI. No extra system packages are required -- `cargo run` builds
@@ -336,7 +379,12 @@ Building from source with `cargo build --release` instead avoids the
 warning entirely, since the binary was compiled locally rather than
 downloaded.
 
+</details>
+
 ### macOS
+
+<details>
+<summary>Show macOS build steps</summary>
 
 The window is drawn with native AppKit widgets via
 [`objc2`](https://docs.rs/objc2) (`NSStackView` of
@@ -387,7 +435,12 @@ guesses wrong (unusual multi-interface setups), set
 `PHONE_INPUT_CONNECT_LAN_IP` to the right IPv4 address to override
 detection.
 
+</details>
+
 ## Security
+
+<details>
+<summary>Show the security model</summary>
 
 PhoneInputConnect is designed to be safe to run on an ordinary home or office Wi-Fi
 network, where other devices are untrusted:
@@ -428,7 +481,12 @@ network, where other devices are untrusted:
   restored. Anything else on your machine that happens to poll the
   clipboard during that brief window could observe the message in transit.
 
+</details>
+
 ## Platform notes
+
+<details>
+<summary>Show per-platform notes</summary>
 
 - **Wayland**: most compositors block synthetic input (both the clipboard
   write and the Ctrl+V keystroke) from arbitrary clients as a security
@@ -470,3 +528,5 @@ network, where other devices are untrusted:
   `native-windows-gui` crate's `image-decoder` feature enabled (see the
   Windows build section above) -- without it, the QR code silently fails
   to render even though everything else in the window works.
+
+</details>
