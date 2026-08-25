@@ -504,9 +504,13 @@ Only one phone can be paired at a time. Scanning a new QR code (the
 window's "New code" button) invalidates the old one.
 
 If the phone's connection drops (screen lock, backgrounded browser tab,
-brief Wi-Fi blip), the same QR code/URL keeps working for about 45 seconds
-in case it reconnects on its own -- no need to re-scan for a short hiccup.
-Past that window, the code is invalidated for good and needs a fresh scan.
+brief Wi-Fi blip), it reconnects on its own with **no re-scan needed** --
+even after long absences or the browser discarding and reloading the tab.
+On first pairing the desktop hands the phone a private "resume" credential
+that it stores locally and reuses to rejoin; the QR code is only ever needed
+once. You only need to scan again if you press **"New code"** (which revokes
+that credential) or the desktop app is restarted (the credential is held in
+memory only and never written to disk).
 
 The window itself *is* the app on every platform, so there's nothing to
 lose track of. Relaunching while an instance is already running just logs
@@ -700,15 +704,23 @@ network, where other devices are untrusted:
   first run and cached per-user. Since there's no certificate authority
   behind it, your phone's browser will show a one-time "connection is not
   private" warning -- click through it once per phone.
-- Pairing is gated by a single 256-bit random token embedded in the QR
-  code's URL. It's unguessable, and is rotated the instant a phone *first*
+- Initial pairing is gated by a single 256-bit random token embedded in the
+  QR code's URL. It's unguessable, and is rotated the instant a phone *first*
   successfully connects, so a QR code can't be reused to open a second,
   competing session. It also expires on its own after 5 minutes if nothing
-  ever connects. A *disconnect*, by contrast, doesn't rotate the token
-  immediately -- it opens a ~45-second grace window where the same token
-  still works, so a phone tab surviving a brief drop can reconnect without
-  a new scan; the token only rotates for real once that window elapses.
-- Only one phone may be connected at a time.
+  ever connects.
+- Reconnecting uses a *separate* 256-bit "resume" secret, minted on first
+  pairing and sent to the phone over the encrypted connection, which the
+  phone stores and presents to rejoin -- so ordinary drops and long absences
+  don't need a fresh scan. It is **kept only in the desktop's memory** (never
+  written to disk), is revoked by "New code", and is gone on app restart. It
+  is *not* tied to the phone's IP address (which is spoofable on a LAN and
+  changes as the phone roams) -- only holding the secret lets a phone rejoin.
+  Only one phone may be connected at a time.
+- The chat page itself contains no secret and is served for any URL path
+  (so a reloaded tab can re-pair from its stored secret); pairing is always
+  gated at the WebSocket by the token or the resume secret, never by serving
+  the page.
 - Repeated failed-token requests from a given source IP are rate-limited
   (defense in depth against scanning or log-spam, not against
   brute-forcing 256 bits of entropy, which is already computationally
