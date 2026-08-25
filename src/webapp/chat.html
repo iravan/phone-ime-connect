@@ -85,12 +85,7 @@
     color: var(--fg); outline: none;
   }
   #text:focus { border-color: var(--accent); }
-  #send {
-    border: none; border-radius: 1.2rem; padding: 0 1.1rem;
-    background: var(--accent); color: var(--accent-fg); font-size: 1rem;
-    font-weight: 600; cursor: pointer;
-  }
-  #send:disabled { opacity: 0.5; cursor: not-allowed; }
+  #text:disabled { opacity: 0.5; }
   #composer { position: relative; }
   #clear-all {
     position: absolute; bottom: 100%; left: 50%;
@@ -121,8 +116,8 @@
     </svg>
     <span id="clear-all-label">Clear all</span>
   </button>
-  <input id="text" type="text" placeholder="Type a message…" maxlength="2000" autocomplete="off">
-  <button id="send" type="submit">Send</button>
+  <input id="text" type="text" placeholder="Type a message…" maxlength="2000"
+         autocomplete="off" enterkeyhint="send">
 </form>
 <script>
 (function () {
@@ -140,7 +135,6 @@
     disconnectedGiveUp: 'Disconnected — ask the desktop for a new code',
     connectionError: 'Connection error',
     placeholder: 'Type a message…',
-    send: 'Send',
     clearAll: 'Clear all',
     tickSending: 'sending…',
     tickSent: 'sent',
@@ -163,7 +157,6 @@
     disconnectedGiveUp: '已中斷連線 — 請向桌面端索取新代碼',
     connectionError: '連線錯誤',
     placeholder: '輸入訊息…',
-    send: '傳送',
     clearAll: '全部清除',
     tickSending: '傳送中…',
     tickSent: '已傳送',
@@ -207,14 +200,12 @@
   var pageTitle = document.getElementById('page-title');
   var form = document.getElementById('composer');
   var input = document.getElementById('text');
-  var sendBtn = document.getElementById('send');
   var clearAllBtn = document.getElementById('clear-all');
   var clearAllLabel = document.getElementById('clear-all-label');
 
   pageTitle.textContent = T.title;
   statusText.textContent = T.connecting;
   input.placeholder = T.placeholder;
-  sendBtn.textContent = T.send;
   clearAllLabel.textContent = T.clearAll;
 
   function trimHistory() {
@@ -264,7 +255,6 @@
     ws.addEventListener('open', function () {
       reconnectDeadline = null;
       setStatus('ok', T.connected);
-      sendBtn.disabled = false;
       input.disabled = false;
     });
 
@@ -272,7 +262,6 @@
       if (reconnectDeadline === null) {
         reconnectDeadline = Date.now() + RECONNECT_GIVE_UP_MS;
       }
-      sendBtn.disabled = true;
       input.disabled = true;
       if (Date.now() < reconnectDeadline) {
         setStatus('warn', T.disconnectedReconnecting);
@@ -311,23 +300,49 @@
   }
   connect();
 
-  form.addEventListener('submit', function (event) {
-    event.preventDefault();
+  // No Send button: a message goes out either when the field has been idle
+  // for AUTO_SEND_MS, or immediately on Enter. `composing` guards IME input
+  // so a half-composed CJK character (candidate window still open) is never
+  // sent mid-composition -- critical for this app's main audience.
+  var AUTO_SEND_MS = 2000;
+  var idleTimer = null;
+  var composing = false;
+
+  function cancelIdle() {
+    if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; }
+  }
+
+  function sendMessage() {
+    cancelIdle();
     var text = input.value;
-    if (!text || !text.trim()) { return; }
-    if (ws.readyState !== WebSocket.OPEN) { return; }
+    if (composing || !text || !text.trim()) { return; }
+    if (!ws || ws.readyState !== WebSocket.OPEN) { return; }
     ws.send(JSON.stringify({ type: 'message', text: text }));
     var bubble = addBubble('mine', text, T.tickSending);
     pending.push(bubble);
     input.value = '';
+  }
+
+  function scheduleIdleSend() {
+    cancelIdle();
+    if (composing || !input.value.trim()) { return; }
+    idleTimer = setTimeout(sendMessage, AUTO_SEND_MS);
+  }
+
+  // Every keystroke restarts the idle countdown; a 2s pause sends.
+  input.addEventListener('input', scheduleIdleSend);
+
+  // While an IME is composing, hold off entirely; resume the countdown once
+  // the character is committed.
+  input.addEventListener('compositionstart', function () { composing = true; cancelIdle(); });
+  input.addEventListener('compositionend', function () { composing = false; scheduleIdleSend(); });
+
+  form.addEventListener('submit', function (event) {
+    event.preventDefault();
+    sendMessage();
+    // Keep the on-screen keyboard up after an Enter-send. Some mobile
+    // browsers only reliably reopen it on a focus() in the next frame.
     input.focus();
-    // Tapping the Send button itself steals focus, and some mobile
-    // browsers only reliably reopen the on-screen keyboard on a focus()
-    // call in the next frame rather than synchronously in this handler.
-    // Only retry if the first call didn't already land -- refocusing an
-    // already-focused input still re-triggers the keyboard's hide/show
-    // animation on some browsers, which briefly eats taps and reads as
-    // the whole page having locked up.
     requestAnimationFrame(function () {
       if (document.activeElement !== input) { input.focus(); }
     });
