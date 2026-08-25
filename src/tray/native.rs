@@ -30,7 +30,7 @@ use winit::platform::macos::{ActivationPolicy, EventLoopBuilderExtMacOS};
 use winit::window::{Window, WindowId};
 
 use super::appkit_dashboard::Content;
-use crate::injector::Injector;
+use crate::injector::{InputEvent, Injector};
 use crate::server::PairingServer;
 
 /// Events routed onto the winit event loop from elsewhere: a fresh dashboard
@@ -43,7 +43,7 @@ enum UserEvent {
     /// text-input APIs, which `enigo` consults to resolve the paste
     /// keystroke, assert they run there -- calling the injector from the
     /// server's blocking thread instead aborts the process.
-    Inject(String),
+    Inject(InputEvent),
 }
 
 struct App {
@@ -110,7 +110,7 @@ impl ApplicationHandler<UserEvent> for App {
                     content.set_accessibility_trusted(accessibility_trusted());
                 }
             }
-            UserEvent::Inject(text) => self.injector.type_text(&text),
+            UserEvent::Inject(event) => self.injector.dispatch(event),
         }
     }
 }
@@ -221,8 +221,8 @@ pub fn run() {
     // there as a `UserEvent::Inject`.
     let injector = Arc::new(Injector::new().expect("failed to initialize keyboard input injector"));
     let inject_proxy = event_loop.create_proxy();
-    let on_message: Arc<dyn Fn(String) + Send + Sync> = Arc::new(move |text: String| {
-        let _ = inject_proxy.send_event(UserEvent::Inject(text));
+    let on_message: Arc<dyn Fn(InputEvent) + Send + Sync> = Arc::new(move |event: InputEvent| {
+        let _ = inject_proxy.send_event(UserEvent::Inject(event));
     });
     let server = Arc::new(
         runtime

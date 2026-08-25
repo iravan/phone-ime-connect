@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, interactive-widget=resizes-content">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, interactive-widget=resizes-content">
 <title>Desktop Input</title>
 <style>
   :root {
@@ -34,6 +34,9 @@
     background: var(--bg); color: var(--fg);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
       Helvetica, Arial, sans-serif;
+    /* Disables double-tap-to-zoom (the viewport flags cover pinch on
+       Android; iOS pinch is handled by the gesturestart guard in JS). */
+    touch-action: manipulation;
   }
   body {
     display: flex; flex-direction: column;
@@ -86,6 +89,14 @@
   }
   #text:focus { border-color: var(--accent); }
   #text:disabled { opacity: 0.5; }
+  .keybtn {
+    flex-shrink: 0; min-width: 2.6rem; padding: 0 0.55rem;
+    border: 1px solid var(--bubble-border); border-radius: 1.2rem;
+    background: var(--bubble-bg); color: var(--fg);
+    font-size: 1rem; font-weight: 600; cursor: pointer; line-height: 1;
+  }
+  .keybtn:active { background: var(--bubble-border); }
+  .keybtn:disabled { opacity: 0.5; }
   #composer { position: relative; }
   #clear-all {
     position: absolute; bottom: 100%; left: 50%;
@@ -116,12 +127,21 @@
     </svg>
     <span id="clear-all-label">Clear all</span>
   </button>
+  <button type="button" class="keybtn" data-key="escape" id="key-escape">Esc</button>
+  <button type="button" class="keybtn" data-key="delete" id="key-delete">⌫</button>
   <input id="text" type="text" placeholder="Type a message…" maxlength="2000"
          autocomplete="off" enterkeyhint="send">
+  <button type="button" class="keybtn" data-key="enter" id="key-enter">⏎</button>
 </form>
 <script>
 (function () {
   'use strict';
+
+  // iOS Safari ignores `user-scalable=no`, so block its pinch-zoom gesture
+  // explicitly. (Android honors the viewport flag; double-tap zoom is off
+  // via `touch-action: manipulation` in CSS.)
+  document.addEventListener('gesturestart', function (e) { e.preventDefault(); },
+    { passive: false });
 
   // English and Traditional Chinese only, so far -- chosen from the
   // phone's own browser language, independent of the desktop app's OS
@@ -136,6 +156,9 @@
     connectionError: 'Connection error',
     placeholder: 'Type a message…',
     clearAll: 'Clear all',
+    keyEnter: 'Enter',
+    keyBackspace: 'Backspace',
+    keyEscape: 'Esc',
     tickSending: 'sending…',
     tickSent: 'sent',
     tickDelivered: 'delivered',
@@ -145,6 +168,7 @@
       new_code_generated: 'Disconnected: a new code was generated.',
       malformed: 'Malformed message.',
       unknown_type: 'Unknown message type.',
+      unknown_key: 'Unknown key.',
       empty_message: 'Empty message.',
       too_long: 'Message too long.'
     }
@@ -158,6 +182,9 @@
     connectionError: '連線錯誤',
     placeholder: '輸入訊息…',
     clearAll: '全部清除',
+    keyEnter: 'Enter 鍵',
+    keyBackspace: '退格鍵',
+    keyEscape: 'Esc 鍵',
     tickSending: '傳送中…',
     tickSent: '已傳送',
     tickDelivered: '已送達',
@@ -167,6 +194,7 @@
       new_code_generated: '已中斷連線：已產生新代碼。',
       malformed: '訊息格式錯誤。',
       unknown_type: '未知的訊息類型。',
+      unknown_key: '未知的按鍵。',
       empty_message: '訊息不可為空。',
       too_long: '訊息過長。'
     }
@@ -202,11 +230,25 @@
   var input = document.getElementById('text');
   var clearAllBtn = document.getElementById('clear-all');
   var clearAllLabel = document.getElementById('clear-all-label');
+  var keyButtons = form.querySelectorAll('.keybtn');
 
   pageTitle.textContent = T.title;
   statusText.textContent = T.connecting;
   input.placeholder = T.placeholder;
   clearAllLabel.textContent = T.clearAll;
+
+  // The buttons show a symbol; give assistive tech (and long-press tooltip)
+  // a real name in the phone's language.
+  var keyNames = { enter: T.keyEnter, delete: T.keyBackspace, escape: T.keyEscape };
+  Array.prototype.forEach.call(keyButtons, function (btn) {
+    var name = keyNames[btn.getAttribute('data-key')];
+    if (name) { btn.setAttribute('aria-label', name); btn.title = name; }
+  });
+
+  function setInputEnabled(enabled) {
+    input.disabled = !enabled;
+    Array.prototype.forEach.call(keyButtons, function (btn) { btn.disabled = !enabled; });
+  }
 
   function trimHistory() {
     while (historyEl.children.length > HISTORY_MAX) {
@@ -255,14 +297,14 @@
     ws.addEventListener('open', function () {
       reconnectDeadline = null;
       setStatus('ok', T.connected);
-      input.disabled = false;
+      setInputEnabled(true);
     });
 
     ws.addEventListener('close', function () {
       if (reconnectDeadline === null) {
         reconnectDeadline = Date.now() + RECONNECT_GIVE_UP_MS;
       }
-      input.disabled = true;
+      setInputEnabled(false);
       if (Date.now() < reconnectDeadline) {
         setStatus('warn', T.disconnectedReconnecting);
         setTimeout(connect, RECONNECT_RETRY_MS);
@@ -355,6 +397,23 @@
       ws.send(JSON.stringify({ type: 'clear' }));
     }
     input.focus();
+  });
+
+  // Enter / Backspace / Esc are sent as real keystrokes on the desktop (not
+  // pasted text). Flush any typed-but-unsent text first so "type then Enter"
+  // arrives in that order. Ordering across the two isn't guaranteed on
+  // Linux/Windows (each is dispatched on its own blocking thread), but the
+  // desktop injector serializes them; in practice the paste lands first.
+  function sendKey(name) {
+    if (!ws || ws.readyState !== WebSocket.OPEN) { return; }
+    if (!composing && input.value.trim()) { sendMessage(); }
+    ws.send(JSON.stringify({ type: 'key', key: name }));
+    input.focus();
+  }
+
+  Array.prototype.forEach.call(keyButtons, function (btn) {
+    // mousedown/touch would steal focus from the text field; click keeps it.
+    btn.addEventListener('click', function () { sendKey(btn.getAttribute('data-key')); });
   });
 
   // Mobile keyboards shrink the *visual* viewport, not the layout viewport,

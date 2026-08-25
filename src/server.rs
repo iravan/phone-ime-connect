@@ -58,6 +58,7 @@ use tokio::sync::broadcast;
 use tokio::sync::Notify;
 use tokio::task::JoinHandle;
 
+use crate::injector::{InputEvent, SpecialKey};
 use crate::{lan, qr, tls};
 
 const MAX_MESSAGE_LEN: usize = 2000;
@@ -134,7 +135,7 @@ struct ServerState {
     history: Mutex<VecDeque<HistoryItem>>,
     rate_limiter: Mutex<RateLimiter>,
     dashboard_tx: broadcast::Sender<String>,
-    on_message: Arc<dyn Fn(String) + Send + Sync>,
+    on_message: Arc<dyn Fn(InputEvent) + Send + Sync>,
 }
 
 impl ServerState {
@@ -374,6 +375,23 @@ async fn handle_incoming(socket: &mut WebSocket, state: &Arc<ServerState>, raw: 
         state.broadcast_dashboard();
         return true;
     }
+    if payload.get("type").and_then(|v| v.as_str()) == Some("key") {
+        let name = payload.get("key").and_then(|v| v.as_str()).unwrap_or_default();
+        let key = match SpecialKey::from_name(name) {
+            Some(k) => k,
+            None => return send_error(socket, "unknown_key", "Unknown key.").await,
+        };
+        // Same blocking-thread dispatch as text (see below); keys aren't
+        // added to the message history -- they're actions, not messages.
+        let callback = state.on_message.clone();
+        tokio::task::spawn_blocking(move || (callback)(InputEvent::Key(key)));
+        return socket
+            .send(Message::Text(
+                serde_json::json!({"type": "ack", "key": name}).to_string(),
+            ))
+            .await
+            .is_ok();
+    }
     if payload.get("type").and_then(|v| v.as_str()) != Some("message") {
         return send_error(socket, "unknown_type", "Unknown message type.").await;
     }
@@ -405,7 +423,7 @@ async fn handle_incoming(socket: &mut WebSocket, state: &Arc<ServerState>, raw: 
     // Injecting synthetic keystrokes is a blocking OS call; running it on
     // a dedicated blocking thread keeps it from stalling the async
     // runtime's worker threads.
-    tokio::task::spawn_blocking(move || (callback)(text_for_callback));
+    tokio::task::spawn_blocking(move || (callback)(InputEvent::Text(text_for_callback)));
 
     state.broadcast_dashboard();
 
@@ -451,7 +469,7 @@ impl PairingServer {
     /// Starts the listener. `on_message` is called (on a dedicated
     /// blocking thread, never the async runtime's own worker threads)
     /// every time a message arrives from the paired phone.
-    pub async fn start(on_message: Arc<dyn Fn(String) + Send + Sync>) -> io::Result<Self> {
+    pub async fn start(on_message: Arc<dyn Fn(InputEvent) + Send + Sync>) -> io::Result<Self> {
         let lan_ip = lan::detect_lan_ipv4().ok_or_else(|| {
             io::Error::other(
                 "No LAN network interface found -- refusing to start a pairing \

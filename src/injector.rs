@@ -42,6 +42,49 @@ const PASTE_MODIFIER: Key = Key::Meta;
 #[cfg(not(target_os = "macos"))]
 const PASTE_MODIFIER: Key = Key::Control;
 
+/// A single non-text keystroke the phone can trigger (Enter/Backspace/Esc),
+/// as opposed to the text-paste path. Unlike text, these are delivered as
+/// real key events -- no clipboard, no IME involved -- so on Wayland, where
+/// synthetic input is often blocked, there's no clipboard fallback for them
+/// (see the module docs and README "Platform notes").
+#[derive(Debug, Clone, Copy)]
+pub enum SpecialKey {
+    Enter,
+    Backspace,
+    Escape,
+}
+
+impl SpecialKey {
+    /// Maps the wire name the phone sends to a key. `None` for anything not
+    /// on the allowlist -- the server rejects those rather than injecting an
+    /// arbitrary caller-chosen keystroke.
+    pub fn from_name(name: &str) -> Option<Self> {
+        match name {
+            // The phone's ⌫ erases the character behind the cursor, which is
+            // Backspace, not the forward-erasing Delete.
+            "enter" => Some(Self::Enter),
+            "delete" => Some(Self::Backspace),
+            "escape" => Some(Self::Escape),
+            _ => None,
+        }
+    }
+
+    fn key(self) -> Key {
+        match self {
+            Self::Enter => Key::Return,
+            Self::Backspace => Key::Backspace,
+            Self::Escape => Key::Escape,
+        }
+    }
+}
+
+/// What the phone asked the desktop to do: paste text, or press a single key.
+#[derive(Debug, Clone)]
+pub enum InputEvent {
+    Text(String),
+    Key(SpecialKey),
+}
+
 // macOS's `Enigo` wraps a `CGEventSource`, which is neither `Send` nor
 // `Sync`, so it can't live inside the `Arc<Injector>` that's shared across
 // the server's async tasks. There it's built fresh per message on the
@@ -73,11 +116,9 @@ impl Injector {
         })
     }
 
-    /// Pastes `text` into the currently focused window. Errors (e.g. no
-    /// compositor permission on Wayland) are logged, not propagated --
-    /// there is no sensible per-message recovery action, and the phone
-    /// side has already shown the message as sent.
-    pub fn type_text(&self, text: &str) {
+    /// Runs `f` with a ready `Enigo`/`Clipboard`, creating `Enigo` lazily on
+    /// the first call (see the module docs). A no-op if that creation fails.
+    fn with_enigo(&self, f: impl FnOnce(&mut Enigo, &mut Clipboard)) {
         let mut state = self.state.lock().unwrap();
         let State { enigo, clipboard } = &mut *state;
 
@@ -98,7 +139,20 @@ impl Injector {
             }
         }
 
-        deliver(enigo.as_mut().unwrap(), clipboard, text);
+        f(enigo.as_mut().unwrap(), clipboard);
+    }
+
+    /// Pastes `text` into the currently focused window. Errors (e.g. no
+    /// compositor permission on Wayland) are logged, not propagated --
+    /// there is no sensible per-message recovery action, and the phone
+    /// side has already shown the message as sent.
+    pub fn type_text(&self, text: &str) {
+        self.with_enigo(|enigo, clipboard| deliver(enigo, clipboard, text));
+    }
+
+    /// Presses a single key (Enter/Backspace/Esc) into the focused window.
+    pub fn send_key(&self, key: SpecialKey) {
+        self.with_enigo(|enigo, _clipboard| press(enigo, key));
     }
 }
 
@@ -136,6 +190,24 @@ impl Injector {
         };
         deliver(&mut enigo, &mut clipboard, text);
     }
+
+    /// Presses a single key (Enter/Backspace/Esc) into the focused window.
+    pub fn send_key(&self, key: SpecialKey) {
+        match Enigo::new(&Settings::default()) {
+            Ok(mut enigo) => press(&mut enigo, key),
+            Err(err) => log::warn!("Failed to initialize keyboard input injector: {err}"),
+        }
+    }
+}
+
+impl Injector {
+    /// Dispatches whatever the phone asked for -- text paste or a key press.
+    pub fn dispatch(&self, event: InputEvent) {
+        match event {
+            InputEvent::Text(text) => self.type_text(&text),
+            InputEvent::Key(key) => self.send_key(key),
+        }
+    }
 }
 
 /// Places `text` on the clipboard, pastes it into the focused window, then
@@ -171,4 +243,27 @@ fn paste(enigo: &mut Enigo) -> enigo::InputResult<()> {
     enigo.key(Key::Unicode('v'), Direction::Click)?;
     enigo.key(PASTE_MODIFIER, Direction::Release)?;
     Ok(())
+}
+
+fn press(enigo: &mut Enigo, key: SpecialKey) {
+    if let Err(err) = enigo.key(key.key(), Direction::Click) {
+        log::warn!("Failed to send the {key:?} key into the focused window: {err}");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::SpecialKey;
+
+    #[test]
+    fn from_name_allowlist() {
+        // Exactly the three the phone offers -- and nothing else, so a
+        // rogue client can't ask for an arbitrary keystroke.
+        assert!(matches!(SpecialKey::from_name("enter"), Some(SpecialKey::Enter)));
+        assert!(matches!(SpecialKey::from_name("delete"), Some(SpecialKey::Backspace)));
+        assert!(matches!(SpecialKey::from_name("escape"), Some(SpecialKey::Escape)));
+        assert!(SpecialKey::from_name("Enter").is_none()); // case-sensitive
+        assert!(SpecialKey::from_name("a").is_none());
+        assert!(SpecialKey::from_name("").is_none());
+    }
 }

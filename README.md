@@ -285,6 +285,18 @@ warning in the phone's browser, then type and send. Your message is typed into
 whatever window is focused on the computer. "New code" makes a fresh QR code;
 "Clear history" wipes the on-screen list.
 
+**Special keys.** Alongside the text field the phone page has three keys —
+**⏎ Enter**, **⌫ Backspace**, and **Esc** — that press the *real* key on your
+computer (not pasted text). Tapping ⏎ after typing sends your text and then
+presses Enter, so you can submit a chat message, run a shell command, or move to
+the next form field; ⌫ deletes the character before the cursor and Esc sends
+Escape. Because these are simulated keystrokes, they're subject to the same
+Accessibility/Wayland gates as typing (see below) and, unlike text, have no
+clipboard fallback if a Wayland compositor blocks them.
+
+> The phone page also locks zoom (no pinch or double-tap zoom) so the keyboard
+> and buttons stay put while you type.
+
 Hit a snag? See **[Common problems & fixes](#common-problems--fixes)** below —
 it walks through every blocker you're likely to see, with screenshots.
 
@@ -636,7 +648,10 @@ it once (System Settings > Privacy & Security > Accessibility) and it
 sticks to the app. Running the bare binary instead (e.g. `cargo run`)
 can't hold that grant on its own; it borrows the *launching terminal's*
 Accessibility permission, so the packaged app is the supported way to
-run it. Prebuilt Apple Silicon (arm64) `.app` bundles are attached to
+run it. (Developing with `cargo run` and typing does nothing? That
+terminal-permission quirk trips everyone — see
+[`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) for the fix.) Prebuilt
+Apple Silicon (arm64) `.app` bundles are attached to
 each tagged [release](../../releases) (see
 `.github/workflows/release-macos.yml`).
 
