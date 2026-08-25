@@ -195,6 +195,8 @@
     connected: 'Connected',
     disconnectedReconnecting: 'Disconnected — reconnecting…',
     disconnectedGiveUp: 'Disconnected — ask the desktop for a new code',
+    reconnectStale: 'Can’t reach the computer — still trying… (scan the QR again if it doesn’t come back)',
+    needScan: 'Scan the QR code on your computer to connect.',
     connectionError: 'Connection error',
     placeholder: 'Type a message…',
     clearAll: 'Clear all',
@@ -234,6 +236,8 @@
     connected: '已連線',
     disconnectedReconnecting: '已中斷連線 — 正在重新連線…',
     disconnectedGiveUp: '已中斷連線 — 請向桌面端索取新代碼',
+    reconnectStale: '無法連線到電腦 — 仍在嘗試…（若遲遲無法連上，請重新掃描 QR code）',
+    needScan: '請掃描電腦上的 QR code 以連線。',
     connectionError: '連線錯誤',
     placeholder: '輸入訊息…',
     clearAll: '全部清除',
@@ -384,33 +388,74 @@
   }
 
   var wsProto = (location.protocol === 'https:') ? 'wss://' : 'ws://';
-  var wsUrl = wsProto + location.host + location.pathname + '/ws';
   var pending = [];
 
-  // The desktop keeps this same token usable for a short grace window
-  // after a drop, so a background/lock/brief-Wi-Fi-blip can reconnect
-  // silently. RECONNECT_RETRY_MS/RECONNECT_GIVE_UP_MS mirror the
-  // server's RECONNECT_GRACE (server.rs) with a little headroom; past
-  // that, the token really has rotated and only a fresh scan will do.
+  // Reconnecting without a rescan: on first pairing the desktop sends a
+  // long-lived "resume secret", which we keep in localStorage. The QR token
+  // is burned after first use, so every later (re)connect authenticates with
+  // the secret instead -- surviving lock-screen, tab discard/reload, Wi-Fi
+  // drops, and long backgrounding. The secret lives only in the desktop's
+  // memory, so a desktop restart (or "New code") invalidates it and a fresh
+  // scan is then needed.
+  var SECRET_KEY = 'pic_resume_secret';
   var RECONNECT_RETRY_MS = 3000;
-  var RECONNECT_GIVE_UP_MS = 60000;
-  var reconnectDeadline = null;
+  var RECONNECT_GIVE_UP_MS = 60000; // token-only phase (no secret yet)
+  var STALE_HINT_MS = 30000;        // fail this long on a secret before hinting
+  var reconnectDeadline = null;     // token-only phase
+  var firstFailAt = null;           // resume phase
+  var haveSecret = false;           // got a secret this page load
+  var triedToken = false;           // spent our path token already
   var ws;
 
+  function storedSecret() {
+    try { return localStorage.getItem(SECRET_KEY); } catch (e) { return null; }
+  }
+
+  // Which WS endpoint to hit next. A freshly scanned "/<token>" URL uses the
+  // token once; after that (or on a reloaded/stale URL) we authenticate with
+  // the stored resume secret, which the desktop honors indefinitely.
+  function nextWsPath() {
+    var tokenInPath = location.pathname.length > 1;
+    if (tokenInPath && !triedToken && !haveSecret) {
+      triedToken = true;
+      return location.pathname + '/ws';
+    }
+    var secret = storedSecret();
+    if (secret) { return '/r/' + encodeURIComponent(secret) + '/ws'; }
+    if (tokenInPath) { return location.pathname + '/ws'; }
+    return null;
+  }
+
   function connect() {
-    ws = new WebSocket(wsUrl);
+    var path = nextWsPath();
+    if (!path) { setStatus('err', T.needScan); return; }
+    ws = new WebSocket(wsProto + location.host + path);
 
     ws.addEventListener('open', function () {
       reconnectDeadline = null;
+      firstFailAt = null;
       setStatus('ok', T.connected);
       setInputEnabled(true);
     });
 
     ws.addEventListener('close', function () {
+      setInputEnabled(false);
+      if (haveSecret || storedSecret()) {
+        // Resume phase: the desktop honors the secret indefinitely, so keep
+        // retrying. After a while, hint that a rescan may be needed (e.g. the
+        // desktop restarted) -- but don't give up.
+        if (firstFailAt === null) { firstFailAt = Date.now(); }
+        var stale = Date.now() - firstFailAt > STALE_HINT_MS;
+        setStatus(stale ? 'err' : 'warn',
+                  stale ? T.reconnectStale : T.disconnectedReconnecting);
+        setTimeout(connect, RECONNECT_RETRY_MS);
+        return;
+      }
+      // Token-only phase (first scan, no secret yet): the QR token expires,
+      // so give up after the window and ask for a new code.
       if (reconnectDeadline === null) {
         reconnectDeadline = Date.now() + RECONNECT_GIVE_UP_MS;
       }
-      setInputEnabled(false);
       if (Date.now() < reconnectDeadline) {
         setStatus('warn', T.disconnectedReconnecting);
         setTimeout(connect, RECONNECT_RETRY_MS);
@@ -430,7 +475,14 @@
       } catch (e) {
         return;
       }
-      if (msg.type === 'history') {
+      if (msg.type === 'resume') {
+        // The desktop's reconnect credential — persist it so we can rejoin
+        // after drops/reloads without a fresh QR scan.
+        if (msg.secret) {
+          try { localStorage.setItem(SECRET_KEY, msg.secret); } catch (e) {}
+          haveSecret = true;
+        }
+      } else if (msg.type === 'history') {
         (msg.items || []).forEach(function (item) {
           addBubble('mine', item.text, T.tickSent);
         });
@@ -446,6 +498,7 @@
       }
     });
   }
+  setInputEnabled(false); // stays disabled until a connection opens
   connect();
 
   // No Send button: a message goes out either when the field has been idle
