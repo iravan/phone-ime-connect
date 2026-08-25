@@ -41,10 +41,11 @@ Rust or any of the developer setup below.
 one-time security prompt — this is normal for any app not from a big publisher:
 
 - **Windows** ("Windows protected your PC"): click **More info** → **Run anyway**.
-- **macOS** ("Apple could not verify…" or "app is damaged"): open **System
-  Settings → Privacy & Security → Open Anyway**; if it still won't launch, run
-  `xattr -dr com.apple.quarantine /Applications/PhoneInputConnect.app` in
-  Terminal (see [fix #2](#2-macos-wont-open--apple-could-not-verify-or-app-is-damaged)).
+- **macOS** ("Apple could not verify…" or "app is damaged"): releases are
+  ad-hoc signed (not yet notarized), so Gatekeeper blocks them. In Terminal run
+  `xattr -cr /Applications/PhoneInputConnect.app` then
+  `codesign --force --deep --sign - /Applications/PhoneInputConnect.app`, and
+  open it (see [fix #2](#2-macos-wont-open--apple-could-not-verify-or-app-is-damaged)).
   Then, so it can type into other apps, approve the Accessibility prompt once
   (**System Settings → Privacy & Security → Accessibility**) — until you do,
   messages arrive but nothing gets typed.
@@ -87,38 +88,43 @@ specifically.
 
 ### 2. macOS: won't open — "Apple could not verify…" or "app is damaged"
 
-**When:** first time you open the `.app` (only on un-notarized builds).
-**Why:** macOS Gatekeeper blocks unverified downloaded apps. On **macOS 15
-Sequoia and newer**, Apple removed the old right-click → **Open** shortcut, so
-double-clicking now just fails silently or says the app "is damaged and can't
-be opened" — even though it isn't.
+**When:** first time you open a downloaded `.app`.
+**Why:** the current release builds are **ad-hoc signed, not notarized** (the
+project doesn't yet have an Apple Developer signing certificate configured), so
+macOS Gatekeeper blocks them. On **macOS 15 Sequoia and newer**, Apple also
+removed the old right-click → **Open** shortcut, so double-clicking now fails
+silently or says the app "is damaged and can't be opened" — even though it
+isn't.
 
-**Fix — do this in order:**
+**Fix — the reliable way (Terminal).** Move the app to your Applications folder
+first, then run these two commands (adjust the path if it's elsewhere):
 
-1. **Try Open Anyway (the current supported way).** Double-click the app once
-   (it gets blocked), then go to **System Settings → Privacy & Security**,
-   scroll down to the message about PhoneInputConnect being blocked, and click
-   **Open Anyway** → authenticate with Touch ID / your password.
+```sh
+xattr -cr /Applications/PhoneInputConnect.app                       # remove the download quarantine
+codesign --force --deep --sign - /Applications/PhoneInputConnect.app  # re-apply a valid local signature
+```
 
-2. **If it still won't open** (or you saw "app is damaged"), the download's
-   quarantine flag is stuck. Open **Terminal** and run this, then launch the
-   app again:
+Then double-click the app as normal. This only needs doing once. `xattr -cr`
+clears the "downloaded from the internet" mark that makes Gatekeeper refuse it;
+the `codesign` line re-seals the app for your own machine, which fixes the "app
+is damaged" case that quarantine removal alone sometimes doesn't.
 
-   ```sh
-   xattr -dr com.apple.quarantine /Applications/PhoneInputConnect.app
-   ```
+**Fix — GUI only (may not be enough on Sequoia).** Double-click once (it gets
+blocked), then **System Settings → Privacy & Security**, scroll to the blocked
+message and click **Open Anyway**. On macOS 14 and earlier you can instead
+right-click the app → **Open** → **Open**.
 
-   (Adjust the path if the app is somewhere other than Applications.) This
-   removes the "downloaded from the internet" mark; it's safe and only needs
-   doing once.
-
-> On older macOS (14 Sonoma and earlier) the shortcut still works: **right-click
-> the app → Open → Open**. Step 1 above works on every version.
+> The permanent fix is on the project side: signing and notarizing releases (the
+> release workflow already supports it — it just needs the Apple Developer
+> secrets configured). Until then, the steps above are required for every
+> download.
 
 ![mac Step 1](docs/screenshots/mac-warning-1.png)
 ![mac Step 2](docs/screenshots/mac-warning-2.png)
 ![mac Step 3](docs/screenshots/mac-warning-3.png)
 ![mac Step 4](docs/screenshots/mac-warning-4.png)
+![mac Step 5](docs/screenshots/mac-warning-5.png)
+![mac Step 6](docs/screenshots/mac-warning-6.png)
 
 ### 3. macOS: messages arrive but nothing gets typed
 
