@@ -41,8 +41,10 @@ Rust or any of the developer setup below.
 one-time security prompt — this is normal for any app not from a big publisher:
 
 - **Windows** ("Windows protected your PC"): click **More info** → **Run anyway**.
-- **macOS** ("Apple could not verify…"): right-click the app → **Open**, or
-  approve it under **System Settings → Privacy & Security → Open Anyway**.
+- **macOS** ("Apple could not verify…" or "app is damaged"): open **System
+  Settings → Privacy & Security → Open Anyway**; if it still won't launch, run
+  `xattr -dr com.apple.quarantine /Applications/PhoneInputConnect.app` in
+  Terminal (see [fix #2](#2-macos-wont-open--apple-could-not-verify-or-app-is-damaged)).
   Then, so it can type into other apps, approve the Accessibility prompt once
   (**System Settings → Privacy & Security → Accessibility**) — until you do,
   messages arrive but nothing gets typed.
@@ -75,21 +77,48 @@ normal and each has a quick fix. Screenshots show exactly what you'll see.
 downloaded program from an unknown publisher — it's not about this app
 specifically.
 
-![Windows SmartScreen "Windows protected your PC" dialog; click More info, then Run anyway](docs/screenshots/windows-smartscreen.png)
+![Windows SmartScreen "Windows protected your PC" dialog; click More info](docs/screenshots/windows-smartscreen-1.png)
+
+![then Run anyway](docs/screenshots/windows-smartscreen-2.png)
+
 
 **Fix:** click **More info**, then the **Run anyway** button that appears.
 (Alternatively: right-click the file → **Properties** → tick **Unblock** → **OK**.)
 
-### 2. macOS: "Apple could not verify… is free of malware"
+### 2. macOS: won't open — "Apple could not verify…" or "app is damaged"
 
 **When:** first time you open the `.app` (only on un-notarized builds).
-**Why:** macOS Gatekeeper blocks apps opened by double-click when it can't
-verify them.
+**Why:** macOS Gatekeeper blocks unverified downloaded apps. On **macOS 15
+Sequoia and newer**, Apple removed the old right-click → **Open** shortcut, so
+double-clicking now just fails silently or says the app "is damaged and can't
+be opened" — even though it isn't.
 
-![macOS Gatekeeper dialog blocking the app; right-click the app and choose Open](docs/screenshots/macos-gatekeeper.png)
+**Fix — do this in order:**
 
-**Fix:** **right-click** the app → **Open** → **Open** again in the dialog. You
-only do this once. (Or **System Settings → Privacy & Security → Open Anyway**.)
+1. **Try Open Anyway (the current supported way).** Double-click the app once
+   (it gets blocked), then go to **System Settings → Privacy & Security**,
+   scroll down to the message about PhoneInputConnect being blocked, and click
+   **Open Anyway** → authenticate with Touch ID / your password.
+
+2. **If it still won't open** (or you saw "app is damaged"), the download's
+   quarantine flag is stuck. Open **Terminal** and run this, then launch the
+   app again:
+
+   ```sh
+   xattr -dr com.apple.quarantine /Applications/PhoneInputConnect.app
+   ```
+
+   (Adjust the path if the app is somewhere other than Applications.) This
+   removes the "downloaded from the internet" mark; it's safe and only needs
+   doing once.
+
+> On older macOS (14 Sonoma and earlier) the shortcut still works: **right-click
+> the app → Open → Open**. Step 1 above works on every version.
+
+![mac Step 1](docs/screenshots/mac-warning-1.png)
+![mac Step 2](docs/screenshots/mac-warning-2.png)
+![mac Step 3](docs/screenshots/mac-warning-3.png)
+![mac Step 4](docs/screenshots/mac-warning-4.png)
 
 ### 3. macOS: messages arrive but nothing gets typed
 
@@ -110,10 +139,11 @@ Privacy & Security → Accessibility**.
 **Why:** the link is encrypted with a certificate your computer generated
 itself — safe on your own network, but browsers flag self-signed certificates.
 
-![Phone browser privacy warning; tap Advanced then Proceed to continue](docs/screenshots/phone-cert-warning.png)
 
 **Fix:** tap **Advanced** (or **Show details**) → **Proceed / Continue**. Once
 per phone.
+![Connect warning 1](docs/screenshots/connect-warning-1.jpg)
+![Connect warning 2](docs/screenshots/connect-warning-2.jpg)
 
 ### 5. Phone can't open the page at all
 
