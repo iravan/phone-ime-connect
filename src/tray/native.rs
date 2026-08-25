@@ -126,6 +126,11 @@ impl App {
             window.set_visible(true);
             window.focus_window();
         }
+        // Re-check Accessibility when the window comes forward, so granting it
+        // (then reopening from the tray) clears the in-window notice.
+        if let Some(content) = &self.content {
+            content.set_accessibility_trusted(accessibility_trusted());
+        }
     }
 }
 
@@ -154,6 +159,7 @@ impl ApplicationHandler<UserEvent> for App {
             // Paint the current state right away; later changes arrive as
             // `UserEvent::Snapshot`.
             content.apply_snapshot(&self.server.dashboard_snapshot());
+            content.set_accessibility_trusted(accessibility_trusted());
 
             self.content = Some(content);
             self.window = Some(window);
@@ -190,11 +196,24 @@ impl ApplicationHandler<UserEvent> for App {
             UserEvent::Snapshot(json) => {
                 if let Some(content) = &self.content {
                     content.apply_snapshot(&json);
+                    content.set_accessibility_trusted(accessibility_trusted());
                 }
             }
             UserEvent::Inject(text) => self.injector.type_text(&text),
         }
     }
+}
+
+/// Whether this process currently has macOS Accessibility trust, without
+/// prompting -- used to drive the in-window "grant Accessibility" notice.
+#[cfg(target_os = "macos")]
+fn accessibility_trusted() -> bool {
+    #[link(name = "ApplicationServices", kind = "framework")]
+    extern "C" {
+        fn AXIsProcessTrusted() -> bool;
+    }
+    // SAFETY: a documented, argument-free CoreFoundation predicate.
+    unsafe { AXIsProcessTrusted() }
 }
 
 /// Requests macOS Accessibility trust, which the synthetic paste keystroke

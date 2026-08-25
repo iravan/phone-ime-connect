@@ -14,9 +14,9 @@ use objc2::{define_class, msg_send, sel, AllocAnyThread, DefinedClass, MainThrea
 use objc2_app_kit::{
     NSAutoresizingMaskOptions, NSBox, NSBoxType, NSButton, NSColor, NSFont, NSImage, NSImageView,
     NSLayoutAttribute, NSLineBreakMode, NSStackView, NSTextAlignment, NSTextField,
-    NSUserInterfaceLayoutOrientation, NSView,
+    NSUserInterfaceLayoutOrientation, NSView, NSWorkspace,
 };
-use objc2_foundation::{NSData, NSEdgeInsets, NSSize, NSString};
+use objc2_foundation::{NSData, NSEdgeInsets, NSSize, NSString, NSURL};
 use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
 use winit::window::Window;
 
@@ -45,6 +45,17 @@ define_class!(
         fn clear_history(&self, _sender: Option<&AnyObject>) {
             self.ivars().server.clear_history();
         }
+
+        #[unsafe(method(openAccessibility:))]
+        fn open_accessibility(&self, _sender: Option<&AnyObject>) {
+            // Deep-link straight to the Accessibility list in System Settings.
+            let url = NSURL::URLWithString(&NSString::from_str(
+                "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility",
+            ));
+            if let Some(url) = url {
+                NSWorkspace::sharedWorkspace().openURL(&url);
+            }
+        }
     }
 );
 
@@ -61,6 +72,9 @@ pub struct Content {
     hint: Retained<NSTextField>,
     qr: Retained<NSImageView>,
     history: Retained<NSTextField>,
+    // Shown only while macOS Accessibility isn't granted (paste won't work).
+    accessibility_notice: Retained<NSTextField>,
+    accessibility_button: Retained<NSButton>,
     // The whole "Received messages" section (separator + header + clear
     // button) is shown only once there's history; toggled from apply_snapshot.
     separator: Retained<NSBox>,
@@ -111,6 +125,22 @@ impl Content {
         };
         clear_button.setHidden(true); // shown only once there's history
 
+        // Accessibility notice: shown when the paste keystroke isn't permitted,
+        // with a button that deep-links to the right System Settings pane.
+        let accessibility_notice = label(s.accessibility_needed, mtm);
+        accessibility_notice.setFont(Some(&NSFont::systemFontOfSize(12.0)));
+        accessibility_notice.setTextColor(Some(&NSColor::systemOrangeColor()));
+        accessibility_notice.setHidden(true);
+        let accessibility_button = unsafe {
+            NSButton::buttonWithTitle_target_action(
+                &NSString::from_str(s.button_open_accessibility),
+                Some(&action_target),
+                Some(sel!(openAccessibility:)),
+                mtm,
+            )
+        };
+        accessibility_button.setHidden(true);
+
         // --- "Received messages" section --------------------------------
         // A rule separates the pairing area (QR/status) from the message
         // log so the two read as distinct sections.
@@ -144,6 +174,8 @@ impl Content {
             right: 28.0,
         });
         stack.addArrangedSubview(&status);
+        stack.addArrangedSubview(&accessibility_notice);
+        stack.addArrangedSubview(&accessibility_button);
         stack.addArrangedSubview(&qr);
         stack.addArrangedSubview(&hint);
         stack.addArrangedSubview(&button);
@@ -157,6 +189,8 @@ impl Content {
         const COL: f64 = 340.0;
         for v in [
             status.as_ref() as &NSView,
+            accessibility_notice.as_ref(),
+            accessibility_button.as_ref(),
             hint.as_ref(),
             button.as_ref(),
             separator.as_ref(),
@@ -184,6 +218,8 @@ impl Content {
             hint,
             qr,
             history,
+            accessibility_notice,
+            accessibility_button,
             separator,
             messages_header,
             clear_button,
@@ -191,6 +227,14 @@ impl Content {
             _button: button,
             _stack: stack,
         }
+    }
+
+    /// Shows or hides the "grant Accessibility" notice + button. Called with
+    /// the current trust state whenever the window is built or brought
+    /// forward, so it clears itself once the permission is granted.
+    pub fn set_accessibility_trusted(&self, trusted: bool) {
+        self.accessibility_notice.setHidden(trusted);
+        self.accessibility_button.setHidden(trusted);
     }
 
     /// Applies a dashboard-snapshot JSON object (the same shape the browser
