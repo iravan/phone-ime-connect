@@ -78,9 +78,9 @@ normal and each has a quick fix. Screenshots show exactly what you'll see.
 downloaded program from an unknown publisher — it's not about this app
 specifically.
 
-![Windows SmartScreen "Windows protected your PC" dialog; click More info](docs/screenshots/windows-smartscreen-1.png)
+<img src="docs/screenshots/windows-smartscreen-1.png" width="530" alt="Windows SmartScreen &quot;Windows protected your PC&quot; dialog; click More info">
 
-![then Run anyway](docs/screenshots/windows-smartscreen-2.png)
+<img src="docs/screenshots/windows-smartscreen-2.png" width="532" alt="then Run anyway">
 
 
 **Fix:** click **More info**, then the **Run anyway** button that appears.
@@ -119,10 +119,9 @@ right-click the app → **Open** → **Open**.
 > secrets configured). Until then, the steps above are required for every
 > download.
 
-![mac Step 1](docs/screenshots/mac-warning-1.png)
-![mac Step 2](docs/screenshots/mac-warning-2.png)
-![mac Step 3](docs/screenshots/mac-warning-3.png)
-![mac Step 4](docs/screenshots/mac-warning-4.png)
+<img src="docs/screenshots/mac-warning-1.png" width="248" alt="mac Step 1">
+<img src="docs/screenshots/mac-warning-2.png" width="704" alt="mac Step 2">
+<img src="docs/screenshots/mac-warning-3.png" width="250" alt="mac Step 3">
 
 ### 3. macOS: messages arrive but nothing gets typed
 
@@ -136,8 +135,8 @@ withholds until you grant it.
 prompt on first launch, or turn it on manually under **System Settings →
 Privacy & Security → Accessibility**.
 
-![mac Step 5](docs/screenshots/mac-warning-5.png)
-![mac Step 6](docs/screenshots/mac-warning-6.png)
+<img src="docs/screenshots/mac-warning-5.png" width="457" alt="mac Step 5">
+<img src="docs/screenshots/mac-warning-6.png" width="705" alt="mac Step 6">
 
 ### 4. Phone: "Your connection is not private"
 
@@ -148,8 +147,8 @@ itself — safe on your own network, but browsers flag self-signed certificates.
 
 **Fix:** tap **Advanced** (or **Show details**) → **Proceed / Continue**. Once
 per phone.
-![Connect warning 1](docs/screenshots/connect-warning-1.jpg)
-![Connect warning 2](docs/screenshots/connect-warning-2.jpg)
+<img src="docs/screenshots/connect-warning-1.jpg" width="588" alt="Connect warning 1">
+<img src="docs/screenshots/connect-warning-2.jpg" width="588" alt="Connect warning 2">
 
 ### 5. Phone can't open the page at all
 
