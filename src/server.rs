@@ -570,6 +570,11 @@ impl PairingServer {
     /// session without waiting for it to age out on its own). Doesn't
     /// touch the pairing token or connection state, unlike
     /// [`Self::regenerate_token`].
+    ///
+    /// Only the Linux and Windows windows expose a "Clear history" button;
+    /// the macOS AppKit dashboard has none, so this is scoped to the
+    /// platforms that actually call it (mirrors the `window` module's cfg).
+    #[cfg(any(target_os = "linux", target_os = "windows"))]
     pub fn clear_history(&self) {
         self.state.history.lock().unwrap().clear();
         self.state.broadcast_dashboard();
