@@ -12,10 +12,10 @@ use objc2::rc::Retained;
 use objc2::runtime::{AnyObject, NSObject};
 use objc2::{define_class, msg_send, sel, AllocAnyThread, DefinedClass, MainThreadMarker};
 use objc2_app_kit::{
-    NSAutoresizingMaskOptions, NSButton, NSImage, NSImageView, NSLayoutAttribute, NSStackView,
-    NSTextField, NSUserInterfaceLayoutOrientation, NSView,
+    NSAutoresizingMaskOptions, NSButton, NSColor, NSFont, NSImage, NSImageView, NSLayoutAttribute,
+    NSStackView, NSTextField, NSUserInterfaceLayoutOrientation, NSView,
 };
-use objc2_foundation::{NSData, NSSize, NSString};
+use objc2_foundation::{NSData, NSEdgeInsets, NSSize, NSString};
 use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
 use winit::window::Window;
 
@@ -78,9 +78,13 @@ impl Content {
             MainThreadMarker::new().expect("the dashboard UI must be built on the main thread");
         let content = content_view(window);
 
+        // Typographic hierarchy: status is the headline, hint is secondary.
         let status = label(s.connecting, mtm);
+        status.setFont(Some(&NSFont::boldSystemFontOfSize(16.0)));
         let qr = NSImageView::new(mtm);
         let hint = label(s.hint_scan, mtm);
+        hint.setFont(Some(&NSFont::systemFontOfSize(12.0)));
+        hint.setTextColor(Some(&NSColor::secondaryLabelColor()));
 
         let action_target = ActionTarget::new(server);
         // Unsafe only because the action selectors must exist on the target
@@ -104,14 +108,24 @@ impl Content {
         clear_button.setHidden(true); // shown only once there's history
 
         // Selectable so the user can highlight a received message and copy it
-        // (Cmd+C) -- the whole point is getting text off the phone.
+        // (Cmd+C) -- the whole point is getting text off the phone. Slightly
+        // muted so the QR/status stay the focus until messages arrive.
         let history = label("", mtm);
         history.setSelectable(true);
+        history.setFont(Some(&NSFont::systemFontOfSize(13.0)));
+        history.setTextColor(Some(&NSColor::secondaryLabelColor()));
 
         let stack = NSStackView::new(mtm);
         stack.setOrientation(NSUserInterfaceLayoutOrientation::Vertical);
-        stack.setSpacing(12.0);
+        stack.setSpacing(14.0);
         stack.setAlignment(NSLayoutAttribute::CenterX);
+        // Breathing room around the whole dashboard instead of edge-to-edge.
+        stack.setEdgeInsets(NSEdgeInsets {
+            top: 24.0,
+            left: 24.0,
+            bottom: 24.0,
+            right: 24.0,
+        });
         stack.addArrangedSubview(&status);
         stack.addArrangedSubview(&qr);
         stack.addArrangedSubview(&hint);
