@@ -45,7 +45,6 @@ native-windows-gui = { version = "1.0", features = ["image-decoder"] }
 # winit window with a tray icon. objc2's version is independent of winit's
 # -- they meet only at the raw NSView pointer, which is version-agnostic.
 [target.'cfg(target_os = "macos")'.dependencies]
-tray-icon = "0.19"
 winit = "0.30"
 objc2 = "0.6"
 objc2-foundation = { version = "0.3", features = ["NSString", "NSData", "NSGeometry"] }
