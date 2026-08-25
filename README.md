@@ -123,8 +123,6 @@ right-click the app → **Open** → **Open**.
 ![mac Step 2](docs/screenshots/mac-warning-2.png)
 ![mac Step 3](docs/screenshots/mac-warning-3.png)
 ![mac Step 4](docs/screenshots/mac-warning-4.png)
-![mac Step 5](docs/screenshots/mac-warning-5.png)
-![mac Step 6](docs/screenshots/mac-warning-6.png)
 
 ### 3. macOS: messages arrive but nothing gets typed
 
@@ -133,11 +131,13 @@ appears on the computer.
 **Why:** typing into other apps needs **Accessibility** permission, which macOS
 withholds until you grant it.
 
-![macOS System Settings, Privacy & Security, Accessibility list with PhoneInputConnect toggled on](docs/screenshots/macos-accessibility.png)
 
 **Fix:** approve the "PhoneInputConnect would like to control this computer"
 prompt on first launch, or turn it on manually under **System Settings →
 Privacy & Security → Accessibility**.
+
+![mac Step 5](docs/screenshots/mac-warning-5.png)
+![mac Step 6](docs/screenshots/mac-warning-6.png)
 
 ### 4. Phone: "Your connection is not private"
 
