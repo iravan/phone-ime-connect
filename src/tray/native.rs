@@ -1,14 +1,16 @@
-//! The macOS native window + tray/menu-bar icon, driven by a `winit` event
-//! loop that owns the process's actual main thread -- required by macOS's
-//! native GUI plumbing (a Cocoa run loop specifically has to pump on the
-//! main thread; see the module-level note in `tray/mod.rs`). Linux and
-//! Windows have their own native windows instead (`window/`).
+//! The macOS native window, driven by a `winit` event loop that owns the
+//! process's actual main thread -- required by macOS's native GUI plumbing
+//! (a Cocoa run loop specifically has to pump on the main thread; see the
+//! module-level note in `tray/mod.rs`). Linux and Windows have their own
+//! native windows instead (`window/`).
 //!
-//! The dashboard is drawn with native AppKit widgets (`appkit_dashboard.rs`).
-//! It takes no network connection -- the same in-process snapshot stream the
-//! Linux window uses (`PairingServer::subscribe_dashboard`) is pushed
-//! straight into the widgets, and the "New code" button calls back
-//! in-process. No external browser is opened.
+//! There is no menu-bar icon: the window *is* the app, and closing it quits
+//! (matching the Linux/Windows windows). The dashboard is drawn with native
+//! AppKit widgets (`appkit_dashboard.rs`). It takes no network connection --
+//! the same in-process snapshot stream the Linux window uses
+//! (`PairingServer::subscribe_dashboard`) is pushed straight into the
+//! widgets, and the "New code" button calls back in-process. No external
+//! browser is opened.
 //!
 //! Because the event loop owns this thread, the pairing server instead
 //! runs on a background Tokio runtime: it's started with one `block_on`
@@ -19,8 +21,6 @@
 use std::sync::Arc;
 
 use tokio::sync::broadcast::error::RecvError;
-use tray_icon::menu::{Menu, MenuEvent, MenuId, MenuItem, PredefinedMenuItem};
-use tray_icon::{Icon, MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent};
 use winit::application::ApplicationHandler;
 use winit::dpi::LogicalSize;
 use winit::event::WindowEvent;
@@ -33,13 +33,10 @@ use super::appkit_dashboard::Content;
 use crate::injector::Injector;
 use crate::server::PairingServer;
 
-/// Events routed onto the winit event loop from elsewhere: the global
-/// muda/tray-icon callback handlers (which fire on an OS-owned thread), a
-/// fresh dashboard snapshot from the server's background task, and a
-/// received message to inject.
+/// Events routed onto the winit event loop from elsewhere: a fresh dashboard
+/// snapshot from the server's background task, and a received message to
+/// inject.
 enum UserEvent {
-    MenuClicked(MenuId),
-    TrayClicked,
     Snapshot(String),
     /// A message from the phone, to be typed into the focused window. Run on
     /// the event loop's thread (the process main thread) because macOS's
@@ -49,89 +46,14 @@ enum UserEvent {
     Inject(String),
 }
 
-/// Builds a small solid circle as the tray icon. Generated in-process
-/// (rather than shipping an image asset) since it only needs to be
-/// recognizable, not branded.
-fn build_icon() -> Icon {
-    const SIZE: u32 = 32;
-    let center = (SIZE - 1) as f32 / 2.0;
-    let radius = SIZE as f32 / 2.0 - 1.0;
-    let mut rgba = Vec::with_capacity((SIZE * SIZE * 4) as usize);
-    for y in 0..SIZE {
-        for x in 0..SIZE {
-            let dx = x as f32 - center;
-            let dy = y as f32 - center;
-            if (dx * dx + dy * dy).sqrt() <= radius {
-                rgba.extend_from_slice(&[0x2f, 0x6f, 0xeb, 0xff]); // opaque accent blue
-            } else {
-                rgba.extend_from_slice(&[0, 0, 0, 0]); // transparent
-            }
-        }
-    }
-    Icon::from_rgba(rgba, SIZE, SIZE)
-        .expect("procedurally generated icon dimensions are always valid")
-}
-
-fn build_tray_icon(open_id: &MenuId, regenerate_id: &MenuId, quit_id: &MenuId) -> TrayIcon {
-    let s = crate::i18n::strings();
-    let menu = Menu::new();
-    menu.append(&MenuItem::with_id(
-        open_id.clone(),
-        s.tray_show_window,
-        true,
-        None,
-    ))
-    .expect("appending a menu item should never fail");
-    menu.append(&MenuItem::with_id(
-        regenerate_id.clone(),
-        s.button_new_code,
-        true,
-        None,
-    ))
-    .expect("appending a menu item should never fail");
-    menu.append(&PredefinedMenuItem::separator())
-        .expect("appending a menu item should never fail");
-    menu.append(&MenuItem::with_id(quit_id.clone(), s.tray_quit, true, None))
-        .expect("appending a menu item should never fail");
-
-    TrayIconBuilder::new()
-        .with_menu(Box::new(menu))
-        .with_icon(build_icon())
-        .with_tooltip("PhoneInputConnect")
-        .build()
-        .expect("failed to create the tray icon")
-}
-
 struct App {
     server: Arc<PairingServer>,
     injector: Arc<Injector>,
-    open_id: MenuId,
-    regenerate_id: MenuId,
-    quit_id: MenuId,
-    // The dashboard content may hold a handle into `window` (the webview
-    // does), so it must drop first: struct fields drop in declaration
-    // order. Both are `None` until the event loop's first `resumed`.
+    // The dashboard content may hold a handle into `window`, so it must drop
+    // first: struct fields drop in declaration order. Both are `None` until
+    // the event loop's first `resumed`.
     content: Option<Content>,
     window: Option<Window>,
-    // Held for as long as the icon should stay visible; dropping it removes
-    // the icon.
-    tray_icon: Option<TrayIcon>,
-}
-
-impl App {
-    /// Brings the window back after it's been closed (hidden) or is behind
-    /// other windows.
-    fn show_window(&self) {
-        if let Some(window) = &self.window {
-            window.set_visible(true);
-            window.focus_window();
-        }
-        // Re-check Accessibility when the window comes forward, so granting it
-        // (then reopening from the tray) clears the in-window notice.
-        if let Some(content) = &self.content {
-            content.set_accessibility_trusted(accessibility_trusted());
-        }
-    }
 }
 
 impl ApplicationHandler<UserEvent> for App {
@@ -139,13 +61,6 @@ impl ApplicationHandler<UserEvent> for App {
         // The first `resumed` (`StartCause::Init`) is the platform-blessed
         // place to create native GUI objects; later `resumed` calls (e.g.
         // after a macOS suspend) leave the existing ones alone.
-        if self.tray_icon.is_none() {
-            self.tray_icon = Some(build_tray_icon(
-                &self.open_id,
-                &self.regenerate_id,
-                &self.quit_id,
-            ));
-        }
         if self.window.is_none() {
             let window = event_loop
                 .create_window(
@@ -168,31 +83,27 @@ impl ApplicationHandler<UserEvent> for App {
 
     fn window_event(
         &mut self,
-        _event_loop: &ActiveEventLoop,
+        event_loop: &ActiveEventLoop,
         _window_id: WindowId,
         event: WindowEvent,
     ) {
-        // Closing the window hides it rather than quitting -- the tray icon
-        // stays, "Show window" brings it back, and "Quit" is the real exit.
-        if let WindowEvent::CloseRequested = event {
-            if let Some(window) = &self.window {
-                window.set_visible(false);
+        match event {
+            // No menu-bar icon to restore from, so closing quits the app
+            // entirely (same as the Linux/Windows windows).
+            WindowEvent::CloseRequested => event_loop.exit(),
+            // Returning to the window (e.g. after granting the permission in
+            // System Settings) re-checks Accessibility so the notice clears.
+            WindowEvent::Focused(true) => {
+                if let Some(content) = &self.content {
+                    content.set_accessibility_trusted(accessibility_trusted());
+                }
             }
+            _ => {}
         }
     }
 
-    fn user_event(&mut self, event_loop: &ActiveEventLoop, event: UserEvent) {
+    fn user_event(&mut self, _event_loop: &ActiveEventLoop, event: UserEvent) {
         match event {
-            UserEvent::TrayClicked => self.show_window(),
-            UserEvent::MenuClicked(id) => {
-                if id == self.open_id {
-                    self.show_window();
-                } else if id == self.regenerate_id {
-                    self.server.regenerate_token();
-                } else if id == self.quit_id {
-                    event_loop.exit();
-                }
-            }
             UserEvent::Snapshot(json) => {
                 if let Some(content) = &self.content {
                     content.apply_snapshot(&json);
@@ -279,8 +190,8 @@ fn request_accessibility_trust() {
     }
 }
 
-/// Starts the pairing server and runs the native window + tray icon's event
-/// loop on the calling thread until "Quit" is chosen. Blocks until then.
+/// Starts the pairing server and runs the native window's event loop on the
+/// calling thread until the window is closed. Blocks until then.
 pub fn run() {
     let runtime = tokio::runtime::Runtime::new().expect("failed to start the async runtime");
 
@@ -322,26 +233,6 @@ pub fn run() {
     log::info!("Pairing server listening at {}", server.lan_socket_addr());
     crate::instance::record_running_instance(&server.lan_socket_addr().to_string());
 
-    // tray-icon delivers menu/icon events via global callback handlers
-    // (fired from OS-owned threads), not through winit -- forward them onto
-    // the event loop as user events so they're handled alongside everything
-    // else on this thread.
-    let menu_proxy = event_loop.create_proxy();
-    MenuEvent::set_event_handler(Some(move |event: MenuEvent| {
-        let _ = menu_proxy.send_event(UserEvent::MenuClicked(event.id().clone()));
-    }));
-    let tray_proxy = event_loop.create_proxy();
-    TrayIconEvent::set_event_handler(Some(move |event: TrayIconEvent| {
-        if let TrayIconEvent::Click {
-            button: MouseButton::Left,
-            button_state: MouseButtonState::Up,
-            ..
-        } = event
-        {
-            let _ = tray_proxy.send_event(UserEvent::TrayClicked);
-        }
-    }));
-
     // Forward each live dashboard snapshot from the server's background task
     // onto the event loop, where it can touch the (main-thread-only)
     // webview. Lagging just means we skipped intermediate states; the next
@@ -365,19 +256,15 @@ pub fn run() {
     let mut app = App {
         server: server.clone(),
         injector,
-        open_id: MenuId::new("show-window"),
-        regenerate_id: MenuId::new("regenerate"),
-        quit_id: MenuId::new("quit"),
         content: None,
         window: None,
-        tray_icon: None,
     };
 
     event_loop
         .run_app(&mut app)
         .expect("event loop exited with an error");
 
-    // `app`'s webview/window/tray are dropped here as it goes out of scope,
-    // then the server is torn down before returning.
+    // `app`'s window is dropped here as it goes out of scope, then the server
+    // is torn down before returning.
     runtime.block_on(server.stop());
 }

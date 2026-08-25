@@ -11,14 +11,12 @@
 
 use std::sync::OnceLock;
 
-// Every field here is read by *some* platform's window/tray module, but
-// no single platform build uses all of them (e.g. `history_header`,
-// `history_empty`, and `copy_to_clipboard_tooltip` are only read by the
-// Linux GTK window's per-row history list; `tray_show_window` and
-// `tray_quit` only by the macOS menu-bar tray). That makes an
-// any-platform build legitimately warn about the fields the *other*
-// platforms use -- not actual dead code, just cross-platform sharing of
-// one struct.
+// Every field here is read by *some* platform's window module, but no
+// single platform build uses all of them (e.g. `history_empty` and
+// `copy_to_clipboard_tooltip` are only read by the Linux GTK window's
+// per-row history list). That makes an any-platform build legitimately
+// warn about the fields the *other* platforms use -- not actual dead
+// code, just cross-platform sharing of one struct.
 #[allow(dead_code)]
 pub struct Strings {
     pub connecting: &'static str,
@@ -36,8 +34,6 @@ pub struct Strings {
     pub history_header: &'static str,
     pub history_empty: &'static str,
     pub copy_to_clipboard_tooltip: &'static str,
-    pub tray_show_window: &'static str,
-    pub tray_quit: &'static str,
 }
 
 const EN: Strings = Strings {
@@ -58,8 +54,6 @@ const EN: Strings = Strings {
     history_header: "Received messages",
     history_empty: "No messages yet",
     copy_to_clipboard_tooltip: "Copy to clipboard",
-    tray_show_window: "Show window",
-    tray_quit: "Quit",
 };
 
 const ZH_HANT: Strings = Strings {
@@ -78,8 +72,6 @@ const ZH_HANT: Strings = Strings {
     history_header: "已接收的訊息",
     history_empty: "尚無訊息",
     copy_to_clipboard_tooltip: "複製到剪貼簿",
-    tray_show_window: "顯示視窗",
-    tray_quit: "結束",
 };
 
 /// The OS UI language can't change over the life of the process, and
