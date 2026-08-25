@@ -20,10 +20,39 @@ windows have now been built and tested on real machines.
 ## Why
 
 Typing on a phone keyboard is often faster or more comfortable than reaching
-for a desktop keyboard -- e.g. dictating a note, pasting a password from a
-phone-based manager, or entering text one-handed. PhoneInputConnect turns your
-phone into an ad hoc keyboard for whatever you're focused on, with no
+for a desktop keyboard -- e.g. dictating a note with the phone's speech-to-text,
+pasting a password or 2FA code from a phone-based manager, sending an emoji or
+CJK phrase your desktop IME fumbles, or entering text one-handed from across the
+room. The phone is already in your hand, already unlocked, already set up with
+your preferred keyboard, autocorrect, and dictation. PhoneInputConnect turns it
+into an ad hoc keyboard for whatever window you're focused on -- with no
 account, no cloud service, and no app to install.
+
+**Where this sits in the bigger picture.** The core idea -- using your phone as
+a wireless input method (an IME digitizer or a direct text relay) -- is no
+longer exotic; it's becoming a standard ecosystem feature. Major platform
+vendors are building the exact same mechanics straight into their desktop
+operating systems: phone-to-desktop text hand-off, shared clipboard, and
+continuity/handoff-style input all point at the same need this tool serves.
+
+PhoneInputConnect's niche is deliberately narrower and different from those
+built-in offerings:
+
+- **Zero setup, no accounts.** No sign-in, no linked-devices dance, no vendor
+  account on either end -- scan a QR code and type.
+- **Cross-ecosystem.** It doesn't care that the phone and computer are from the
+  same vendor. Any phone with a camera and browser talks to any desktop OS
+  (Linux, Windows, macOS) -- exactly the mix the built-in features refuse to
+  bridge.
+- **Local-only and private.** Everything stays on your LAN, encrypted, with
+  nothing persisted (see [Security](#security)). No cloud round-trip.
+- **Focused and inspectable.** One small open-source binary that does one thing,
+  rather than an OS subsystem you can't see into.
+
+In short: if you live entirely inside one vendor's ecosystem, their built-in
+feature may already cover you. PhoneInputConnect is the focused, zero-setup,
+cross-platform local utility for everyone who doesn't -- or who just wants a
+tool they can read, run, and trust without an account.
 
 ## For users (no building required)
 
