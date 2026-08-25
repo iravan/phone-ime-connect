@@ -9,9 +9,9 @@ focus on your desktop -- as if you'd typed it yourself.
 
 **Platform status**: every platform opens a native window showing the QR
 code/status/history on launch. On Linux it's a GTK4 window
-(`window/linux.rs`); on Windows a `native-windows-gui`/Win32 window
-(`window/windows.rs`); on macOS native AppKit widgets in a `winit` window
-with a menu-bar icon (`tray/native.rs`, `tray/appkit_dashboard.rs`).
+(`src/window/linux.rs`); on Windows a `native-windows-gui`/Win32 window
+(`src/window/windows.rs`); on macOS native AppKit widgets in a `winit` window
+with a menu-bar icon (`src/tray/native.rs`, `src/tray/appkit_dashboard.rs`).
 Closing the Linux/Windows window quits the app entirely, including the
 pairing server; on macOS closing just hides the window (the menu-bar
 icon's "Show window" brings it back, "Quit" exits). All three platforms'
@@ -25,7 +25,146 @@ phone-based manager, or entering text one-handed. PhoneInputConnect turns your
 phone into an ad hoc keyboard for whatever you're focused on, with no
 account, no cloud service, and no app to install.
 
+## For users (no building required)
+
+If you just want to use the app, grab a prebuilt download — you don't need
+Rust or any of the developer setup below.
+
+**1. Download** the build for your system from [Releases](../../releases):
+
+- **macOS** — an Apple Silicon `.app`. Move it to Applications (or run in place).
+- **Windows** — an `.exe`. Run it directly.
+- **Linux** — a `.deb` (Debian/Ubuntu, incl. Zorin OS) or `.rpm` (Fedora), both
+  x86_64. The app icon and launcher entry are set up for you on install.
+
+**2. Get past the first-run warning.** New downloaded software triggers a
+one-time security prompt — this is normal for any app not from a big publisher:
+
+- **Windows** ("Windows protected your PC"): click **More info** → **Run anyway**.
+- **macOS** ("Apple could not verify…"): right-click the app → **Open**, or
+  approve it under **System Settings → Privacy & Security → Open Anyway**.
+  Then, so it can type into other apps, approve the Accessibility prompt once
+  (**System Settings → Privacy & Security → Accessibility**) — until you do,
+  messages arrive but nothing gets typed.
+- **Linux** (some GNOME setups): allow the one-time "remote desktop
+  interaction" prompt the first time a message is typed.
+
+**3. Use it.** Launch the app, scan the QR code with your phone's camera (same
+Wi-Fi as the computer), tap through the one-time "connection is not private"
+warning in the phone's browser, then type and send. Your message is typed into
+whatever window is focused on the computer. "New code" makes a fresh QR code;
+"Clear history" wipes the on-screen list.
+
+Hit a snag? See **[Common problems & fixes](#common-problems--fixes)** below —
+it walks through every blocker you're likely to see, with screenshots.
+
+Your privacy: everything stays on your local Wi-Fi (no account, no cloud), the
+connection is encrypted, only one phone can connect per code, and nothing is
+saved to disk — message history lives in memory and is gone when you close the
+app.
+
+## Common problems & fixes
+
+The blockers below are the ones almost every first-time user hits. Each is
+normal and each has a quick fix. Screenshots show exactly what you'll see.
+
+### 1. Windows: "Windows protected your PC"
+
+**When:** the very first time you run the downloaded `.exe`.
+**Why:** the app is unsigned, so Windows SmartScreen warns about any new,
+downloaded program from an unknown publisher — it's not about this app
+specifically.
+
+![Windows SmartScreen "Windows protected your PC" dialog; click More info, then Run anyway](docs/screenshots/windows-smartscreen.png)
+
+**Fix:** click **More info**, then the **Run anyway** button that appears.
+(Alternatively: right-click the file → **Properties** → tick **Unblock** → **OK**.)
+
+### 2. macOS: "Apple could not verify… is free of malware"
+
+**When:** first time you open the `.app` (only on un-notarized builds).
+**Why:** macOS Gatekeeper blocks apps opened by double-click when it can't
+verify them.
+
+![macOS Gatekeeper dialog blocking the app; right-click the app and choose Open](docs/screenshots/macos-gatekeeper.png)
+
+**Fix:** **right-click** the app → **Open** → **Open** again in the dialog. You
+only do this once. (Or **System Settings → Privacy & Security → Open Anyway**.)
+
+### 3. macOS: messages arrive but nothing gets typed
+
+**When:** after connecting, the phone shows the message delivered but no text
+appears on the computer.
+**Why:** typing into other apps needs **Accessibility** permission, which macOS
+withholds until you grant it.
+
+![macOS System Settings, Privacy & Security, Accessibility list with PhoneInputConnect toggled on](docs/screenshots/macos-accessibility.png)
+
+**Fix:** approve the "PhoneInputConnect would like to control this computer"
+prompt on first launch, or turn it on manually under **System Settings →
+Privacy & Security → Accessibility**.
+
+### 4. Phone: "Your connection is not private"
+
+**When:** right after scanning the QR code, in the phone's browser.
+**Why:** the link is encrypted with a certificate your computer generated
+itself — safe on your own network, but browsers flag self-signed certificates.
+
+![Phone browser privacy warning; tap Advanced then Proceed to continue](docs/screenshots/phone-cert-warning.png)
+
+**Fix:** tap **Advanced** (or **Show details**) → **Proceed / Continue**. Once
+per phone.
+
+### 5. Phone can't open the page at all
+
+**When:** the QR scans but the page never loads, or times out.
+**Why:** the phone and computer aren't on the same network, or the QR encodes
+the wrong address.
+
+**Fix:**
+- Make sure the phone and computer are on the **same Wi-Fi network** (not
+  guest Wi-Fi, not mobile data).
+- If they are and it still fails, the app may have guessed the wrong network
+  address. Find your computer's Wi-Fi IPv4 address and set the environment
+  variable `PHONE_INPUT_CONNECT_LAN_IP` to it before launching, e.g.
+  `PHONE_INPUT_CONNECT_LAN_IP=192.168.1.42`.
+
+### 6. Linux/Wayland: typing silently does nothing
+
+**When:** on Linux, the message is "delivered" but no text appears.
+**Why:** many Wayland desktops block apps from simulating keystrokes as a
+security measure — nothing this app can override.
+
+**Fix:** the message is still sitting on your clipboard — just press
+**Ctrl+V** yourself in the target window. (Some GNOME setups also show a
+one-time "allow remote desktop interaction" prompt the first time; allow it.)
+
+> **Adding the screenshots:** the images above live in `docs/screenshots/`.
+> That folder's `README.md` lists exactly what each screenshot should capture —
+> drop the PNGs in with the matching filenames and they'll render here.
+
 ## How it works
+
+```mermaid
+sequenceDiagram
+    participant P as Phone browser
+    participant A as PhoneInputConnect app
+    participant W as Focused window (on computer)
+
+    A->>A: Start LAN server (TLS), show QR code<br/>(URL + 256-bit token)
+    P->>A: Scan QR, open page over LAN
+    A-->>P: Serve chat page
+    P->>A: Connect (WebSocket), present token
+    A->>A: Validate token, rotate it<br/>status → "Phone connected"
+    loop Each message
+        P->>A: Send typed message
+        A-->>P: Echo back as chat bubble
+        A->>A: Save current clipboard
+        A->>W: Set clipboard + simulate paste<br/>(Ctrl+V / Cmd+V)
+        A->>A: Restore previous clipboard
+    end
+    Note over P,A: On drop, same token works<br/>for ~45s before it rotates
+```
 
 1. Launch PhoneInputConnect. A window showing a QR code opens directly --
    a GTK4 window on Linux, a Win32 window on Windows, native AppKit
@@ -45,7 +184,7 @@ account, no cloud service, and no app to install.
 The desktop window's own text (status/hint/button labels) is shown in
 English or Traditional Chinese, picked automatically from the OS's UI
 language at startup (`src/i18n.rs`) -- no setting to change it. The phone
-page (`webapp/chat.html`) is unrelated to this: it localizes itself from
+page (`src/webapp/chat.html`) is unrelated to this: it localizes itself from
 the *phone's* browser language instead, since the phone and desktop are
 different devices with no reason to share a UI language.
 
@@ -284,14 +423,14 @@ network, where other devices are untrusted:
   as composition input, not to accept a pre-composed character outright --
   would silently drop or mangle. Pasting sidesteps that entirely.
 - **macOS native window**: native AppKit widgets in a `winit` window with
-  a menu-bar icon (`tray/native.rs`, `tray/appkit_dashboard.rs`). The app
+  a menu-bar icon (`src/tray/native.rs`, `src/tray/appkit_dashboard.rs`). The app
   runs under the "Regular" activation policy (a Dock icon), so it behaves
   like an ordinary windowed app; closing the window hides it and leaves
   the app in the menu bar rather than quitting. The paste keystroke needs
   Accessibility permission (see the macOS build section); until it's
   granted, messages arrive but typing into other apps silently does
   nothing.
-- **Windows**: `window/windows.rs` has now been built and tested on real
+- **Windows**: `src/window/windows.rs` has now been built and tested on real
   Windows hardware, same as the Linux and macOS windows. It does need the
   `native-windows-gui` crate's `image-decoder` feature enabled (see the
   Windows build section above) -- without it, the QR code silently fails
