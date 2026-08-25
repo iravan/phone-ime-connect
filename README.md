@@ -7,15 +7,22 @@ it with your phone (same Wi-Fi network, no app install), type a message in
 the page that opens, and it's instantly typed into whatever window has
 focus on your desktop -- as if you'd typed it yourself.
 
-**Platform status**: every platform opens a native window showing the QR
-code/status/history on launch. On Linux it's a GTK4 window
-(`src/window/linux.rs`); on Windows a `native-windows-gui`/Win32 window
-(`src/window/windows.rs`); on macOS native AppKit widgets in a `winit` window
-with a menu-bar icon (`src/tray/native.rs`, `src/tray/appkit_dashboard.rs`).
-Closing the Linux/Windows window quits the app entirely, including the
-pairing server; on macOS closing just hides the window (the menu-bar
-icon's "Show window" brings it back, "Quit" exits). All three platforms'
-windows have now been built and tested on real machines.
+Works on **Linux, Windows, and macOS** — each opens a small native window with
+the QR code, status, and recent history. No account, no cloud, no phone app.
+All three platforms are built and tested on real hardware.
+
+---
+
+**Contents**
+
+- [Why](#why) — what it's for and who it's for
+- [For users](#for-users-no-building-required) — download and run (no building)
+- [Common problems & fixes](#common-problems--fixes) — first-run blockers, with screenshots
+- [How it works](#how-it-works) — the message flow
+- [Building and running](#building-and-running) — from source (developers)
+- [Security](#security) · [Platform notes](#platform-notes)
+
+---
 
 ## Why
 
@@ -38,33 +45,6 @@ account, no cloud service, and no app to install.
 > you already carry. Dictate a long message, an email, a commit description, or
 > a paragraph of notes hands-free, then keep working at the desktop.
 
-**Who it's for, and the philosophy behind it.** For most people the phone has
-become the primary text-input device -- it's the one gadget that's always in
-hand, and manufacturers pour enormous effort into making its IME (input method
-editor) fast and accurate: gesture/swipe typing, aggressive prediction and
-autocorrect, per-language layout tuning, handwriting recognition, and top-tier
-voice input. Years of daily use build real muscle memory there. Many people are
-simply faster and more accurate typing on their phone than on a desktop
-keyboard.
-
-That gap is widest for **stroke-based and complex scripts**. Entering Chinese on
-a desktop, for example, is genuinely awkward: you have to install and configure
-an input method, pick a scheme (Pinyin, Zhuyin, Cangjie, Wubi, stroke...), and
-juggle candidate lists with the keyboard -- and handwriting or stroke input with
-a mouse is painful. Phones solve this beautifully out of the box: on-screen
-handwriting, stroke and radical input on a touch surface, swipe, and voice all
-just work, and the recognizer is tuned by the vendor for exactly that script.
-The same holds for Japanese, Korean, Thai, emoji, and mixed-language text.
-
-So the philosophy is deliberately humble: **don't reinvent the input method --
-relay the one the user already has and trusts.** Rather than building yet another
-desktop IME, PhoneInputConnect lets your phone do what it's already best at, then
-delivers the finished text to whatever has focus on your computer. Meet people
-where their typing skill already lives, add zero setup, keep it local and
-private, and make it work into *any* app on *any* desktop OS. The tool should be
-invisible -- the phone's keyboard is the product; this just carries its output
-across the room.
-
 **Who this is for:**
 
 - **CJK / complex-script users** who type Chinese, Japanese, Korean, Thai, etc.
@@ -75,39 +55,52 @@ across the room.
 - **Voice-input users** who want to dictate into any desktop app using their
   phone's superior speech-to-text.
 - **Accessibility users** for whom a touch keyboard, handwriting, or voice is
-  easier than a desktop keyboard, or who type more comfortably one-handed or
-  away from the desk.
-- **Privacy-conscious and cross-ecosystem users** who want a local, no-account
-  tool that works between *any* phone and *any* desktop OS, not a feature locked
-  to one vendor's devices.
-- **Tinkerers and tech-savvy users** who prefer a small, inspectable
-  open-source utility they can run with zero setup.
+  easier than a desktop keyboard, or who type more comfortably one-handed.
+- **Privacy-conscious, cross-ecosystem users** who want a local, no-account tool
+  that works between *any* phone and *any* desktop OS.
+- **Tinkerers** who prefer a small, inspectable open-source utility with zero
+  setup.
 
-**Where this sits in the bigger picture.** The core idea -- using your phone as
-a wireless input method (an IME digitizer or a direct text relay) -- is no
-longer exotic; it's becoming a standard ecosystem feature. Major platform
-vendors are building the exact same mechanics straight into their desktop
-operating systems: phone-to-desktop text hand-off, shared clipboard, and
-continuity/handoff-style input all point at the same need this tool serves.
+<details>
+<summary>The philosophy — and how it compares to built-in OS features</summary>
 
-PhoneInputConnect's niche is deliberately narrower and different from those
-built-in offerings:
+**The phone is now the primary text-input device.** It's always in hand, and
+manufacturers pour huge effort into its IME (input method editor): swipe typing,
+prediction and autocorrect, per-language layout tuning, handwriting recognition,
+and top-tier voice input. Years of daily use build real muscle memory — many
+people are faster and more accurate on their phone than on a desktop keyboard.
 
-- **Zero setup, no accounts.** No sign-in, no linked-devices dance, no vendor
-  account on either end -- scan a QR code and type.
-- **Cross-ecosystem.** It doesn't care that the phone and computer are from the
-  same vendor. Any phone with a camera and browser talks to any desktop OS
-  (Linux, Windows, macOS) -- exactly the mix the built-in features refuse to
-  bridge.
-- **Local-only and private.** Everything stays on your LAN, encrypted, with
-  nothing persisted (see [Security](#security)). No cloud round-trip.
-- **Focused and inspectable.** One small open-source binary that does one thing,
-  rather than an OS subsystem you can't see into.
+**The gap is widest for stroke-based and complex scripts.** Entering Chinese on a
+desktop is genuinely awkward: install and configure an input method, pick a
+scheme (Pinyin, Zhuyin, Cangjie, Wubi, stroke…), and juggle candidate lists with
+the keyboard — and handwriting with a mouse is painful. Phones handle it out of
+the box: on-screen handwriting, stroke/radical input, swipe, and voice all just
+work, tuned by the vendor for that exact script. The same holds for Japanese,
+Korean, Thai, emoji, and mixed-language text.
 
-In short: if you live entirely inside one vendor's ecosystem, their built-in
-feature may already cover you. PhoneInputConnect is the focused, zero-setup,
-cross-platform local utility for everyone who doesn't -- or who just wants a
-tool they can read, run, and trust without an account.
+**So the philosophy is humble: don't reinvent the input method — relay the one
+the user already trusts.** Rather than build yet another desktop IME,
+PhoneInputConnect lets the phone do what it's best at and delivers the finished
+text to whatever has focus on your computer. The tool should be invisible: the
+phone's keyboard is the product; this just carries its output across the room.
+
+**How it compares to built-in OS features.** Phone-as-input is becoming a
+standard ecosystem feature — vendors are baking text hand-off, shared clipboard,
+and continuity-style input into their desktops. PhoneInputConnect's niche is
+narrower and different:
+
+| | Built-in OS features | PhoneInputConnect |
+|---|---|---|
+| Setup | Accounts + linked devices | Scan a QR code |
+| Devices | Usually same vendor only | Any phone → any desktop OS |
+| Data path | Often via the cloud | Local LAN only, encrypted |
+| Openness | Opaque OS subsystem | One small open-source binary |
+
+If you live entirely inside one vendor's ecosystem, their built-in feature may
+already cover you. PhoneInputConnect is for everyone who doesn't — or who just
+wants a tool they can read, run, and trust without an account.
+
+</details>
 
 ## For users (no building required)
 
