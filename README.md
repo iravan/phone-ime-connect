@@ -102,6 +102,49 @@ wants a tool they can read, run, and trust without an account.
 
 </details>
 
+<details>
+<summary>Beyond the desktop: consoles, karaoke, TVs — any display-only device</summary>
+
+This desktop app is just one instance of a much broader idea. **Any device that
+is essentially a display plus a cursor — but no real keyboard — has a text-input
+problem**, and the same phone-relay concept solves it. If you build for these
+devices, this is worth stealing.
+
+Think about how painful text entry is today on:
+
+- **Game consoles (PlayStation, Xbox, Switch).** Typing a search query,
+  username, password, friend message, or Wi-Fi key by nudging a thumbstick
+  across an on-screen keyboard one letter at a time is one of the most-complained
+  about experiences in gaming. A phone-relay turns it into: scan, type, done.
+- **Karaoke machines.** Finding a song means scrolling an on-screen keyboard with
+  a remote — and it's *especially* brutal for **Chinese/Japanese/Korean song
+  titles**, where a D-pad has no good way to enter the characters at all. A phone
+  brings full CJK IME, handwriting, **and voice search** ("just say the song
+  name") to a device that otherwise can't do any of it.
+- **Smart TVs & streaming boxes** (login, search), **kiosks and POS terminals**,
+  **VR/AR headsets**, and **car infotainment** — all the same story: a great
+  display, a clumsy pointer, and no keyboard.
+
+Why the phone-relay pattern wins here:
+
+- **The best keyboard is already in every user's pocket** — with the IME, voice
+  recognition, autocorrect, and language support the vendor spent years tuning.
+  Don't try to out-build it on a D-pad; borrow it.
+- **Voice and CJK become trivial.** The hardest inputs for a cursor-only device
+  (long text, dictation, stroke-based scripts) are exactly what phones do best.
+- **Cheap to implement and cross-vendor.** The whole mechanism is a QR code, a
+  tiny local web page, a WebSocket, and injecting the received text — no app to
+  ship to an app store, no account system, works with any phone.
+- **Zero install for the user.** Scan and type; nothing to download on either
+  side.
+
+The takeaway for device makers and hobbyists alike: **stop trying to make an
+on-screen keyboard less bad. Let the phone be the keyboard.** PhoneInputConnect
+is the desktop proof of concept — the same few moving parts drop straight into a
+console, a karaoke box, or a kiosk.
+
+</details>
+
 ## For users (no building required)
 
 If you just want to use the app, grab a prebuilt download — you don't need
