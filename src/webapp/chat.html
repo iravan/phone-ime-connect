@@ -53,7 +53,20 @@
   }
   #status-dot.ok { background: #2fa84f; }
   #status-dot.err { background: var(--danger); }
-  #status-text { font-size: 0.8rem; color: var(--muted); margin-left: auto; }
+  #status-text {
+    font-size: 0.8rem; color: var(--muted); margin-left: auto;
+    min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .hdr-btn {
+    flex-shrink: 0; border: 1px solid var(--bubble-border); border-radius: 999px;
+    background: var(--bubble-bg); color: var(--fg); cursor: pointer;
+    font-size: 0.8rem; font-weight: 600; line-height: 1;
+    padding: 0.35rem 0.6rem; min-width: 2rem;
+  }
+  .hdr-btn:active { background: var(--bubble-border); }
+  #speed-toggle[aria-pressed="true"] {
+    background: var(--accent); color: var(--accent-fg); border-color: var(--accent);
+  }
   #history {
     flex: 1; overflow-y: auto; padding: 1rem;
     display: flex; flex-direction: column; gap: 0.5rem;
@@ -109,6 +122,26 @@
     white-space: nowrap;
   }
   #clear-all svg { width: 0.85rem; height: 0.85rem; flex-shrink: 0; }
+  .modal {
+    position: fixed; inset: 0; z-index: 10; padding: 1.5rem;
+    background: rgba(0, 0, 0, 0.5);
+    display: none; align-items: center; justify-content: center;
+  }
+  .modal.open { display: flex; }
+  .modal-card {
+    background: var(--bg); color: var(--fg);
+    border: 1px solid var(--bubble-border); border-radius: 1rem;
+    width: 100%; max-width: 26rem; max-height: 80vh; overflow-y: auto;
+    padding: 1.25rem; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+  }
+  .modal-card h2 { margin: 0 0 0.75rem; font-size: 1.1rem; }
+  .modal-card ul { margin: 0 0 1rem; padding-left: 1.1rem; }
+  .modal-card li { margin: 0.45rem 0; font-size: 0.9rem; line-height: 1.45; }
+  #help-close {
+    display: block; width: 100%; padding: 0.6rem; border: none;
+    border-radius: 0.8rem; background: var(--accent); color: var(--accent-fg);
+    font-size: 0.95rem; font-weight: 600; cursor: pointer;
+  }
 </style>
 </head>
 <body>
@@ -116,7 +149,16 @@
   <span id="status-dot"></span>
   <h1 id="page-title">Desktop Input</h1>
   <span id="status-text">Connecting…</span>
+  <button id="speed-toggle" class="hdr-btn" type="button" aria-pressed="false">1s</button>
+  <button id="help-btn" class="hdr-btn" type="button" aria-label="Help">?</button>
 </header>
+<div id="help-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="help-title">
+  <div class="modal-card">
+    <h2 id="help-title">How to use</h2>
+    <ul id="help-list"></ul>
+    <button id="help-close" type="button">Got it</button>
+  </div>
+</div>
 <div id="history"></div>
 <form id="composer" autocomplete="off">
   <button id="clear-all" type="button">
@@ -159,6 +201,19 @@
     keyEnter: 'Enter',
     keyBackspace: 'Backspace',
     keyEscape: 'Esc',
+    speedFast: '1s',
+    speedSlow: '3s',
+    speedTitle: 'Auto-send delay — tap for slower (3s)',
+    helpButton: 'Help',
+    helpTitle: 'How to use',
+    helpClose: 'Got it',
+    help: [
+      'Type or dictate a message — it sends automatically after a short pause, or tap ⏎ to send it now.',
+      'The ⏎ Enter, ⌫ Backspace and Esc buttons press those real keys on the computer.',
+      'The 1s/3s button sets the auto-send delay — switch to 3s if messages send before you finish typing.',
+      'Whatever you send is typed into the window that is focused on the computer.',
+      'Your messages stay on your local Wi-Fi and are never saved.'
+    ],
     tickSending: 'sending…',
     tickSent: 'sent',
     tickDelivered: 'delivered',
@@ -185,6 +240,19 @@
     keyEnter: 'Enter 鍵',
     keyBackspace: '退格鍵',
     keyEscape: 'Esc 鍵',
+    speedFast: '1秒',
+    speedSlow: '3秒',
+    speedTitle: '自動傳送延遲 — 點按可調慢（3秒）',
+    helpButton: '說明',
+    helpTitle: '使用說明',
+    helpClose: '知道了',
+    help: [
+      '輸入或口述訊息 — 稍作停頓後會自動傳送，或點 ⏎ 立即傳送。',
+      '⏎ Enter、⌫ 退格、Esc 按鈕會按下電腦上對應的實體按鍵。',
+      '1秒／3秒 按鈕可設定自動傳送延遲 — 若訊息在你打完前就送出，請切換為 3 秒。',
+      '你送出的內容會輸入到電腦上目前作用中的視窗。',
+      '你的訊息僅留在本地 Wi-Fi，不會被儲存。'
+    ],
     tickSending: '傳送中…',
     tickSent: '已傳送',
     tickDelivered: '已送達',
@@ -249,6 +317,44 @@
     input.disabled = !enabled;
     Array.prototype.forEach.call(keyButtons, function (btn) { btn.disabled = !enabled; });
   }
+
+  // --- Auto-send speed toggle (1s default / 3s slow) --------------------
+  var speedToggle = document.getElementById('speed-toggle');
+  speedToggle.textContent = T.speedFast;
+  speedToggle.title = T.speedTitle;
+  speedToggle.addEventListener('click', function () {
+    var slow = speedToggle.getAttribute('aria-pressed') !== 'true';
+    speedToggle.setAttribute('aria-pressed', slow ? 'true' : 'false');
+    speedToggle.textContent = slow ? T.speedSlow : T.speedFast;
+    autoSendMs = slow ? 3000 : 1000;
+    input.focus();
+  });
+
+  // --- Help modal -------------------------------------------------------
+  var helpBtn = document.getElementById('help-btn');
+  var helpModal = document.getElementById('help-modal');
+  var helpClose = document.getElementById('help-close');
+  helpBtn.setAttribute('aria-label', T.helpButton);
+  helpBtn.title = T.helpButton;
+  document.getElementById('help-title').textContent = T.helpTitle;
+  helpClose.textContent = T.helpClose;
+  var helpList = document.getElementById('help-list');
+  T.help.forEach(function (line) {
+    var li = document.createElement('li');
+    li.textContent = line;
+    helpList.appendChild(li);
+  });
+  function openHelp() { helpModal.classList.add('open'); }
+  function closeHelp() { helpModal.classList.remove('open'); input.focus(); }
+  helpBtn.addEventListener('click', openHelp);
+  helpClose.addEventListener('click', closeHelp);
+  // Tap the dimmed backdrop (outside the card) to dismiss.
+  helpModal.addEventListener('click', function (e) {
+    if (e.target === helpModal) { closeHelp(); }
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && helpModal.classList.contains('open')) { closeHelp(); }
+  });
 
   function trimHistory() {
     while (historyEl.children.length > HISTORY_MAX) {
@@ -343,10 +449,11 @@
   connect();
 
   // No Send button: a message goes out either when the field has been idle
-  // for AUTO_SEND_MS, or immediately on Enter. `composing` guards IME input
+  // for `autoSendMs`, or immediately on Enter. `composing` guards IME input
   // so a half-composed CJK character (candidate window still open) is never
   // sent mid-composition -- critical for this app's main audience.
-  var AUTO_SEND_MS = 1000;
+  // `autoSendMs` is 1s by default; the header toggle bumps it to 3s.
+  var autoSendMs = 1000;
   var idleTimer = null;
   var composing = false;
 
@@ -368,7 +475,7 @@
   function scheduleIdleSend() {
     cancelIdle();
     if (composing || !input.value.trim()) { return; }
-    idleTimer = setTimeout(sendMessage, AUTO_SEND_MS);
+    idleTimer = setTimeout(sendMessage, autoSendMs);
   }
 
   // Every keystroke restarts the idle countdown; a 2s pause sends.

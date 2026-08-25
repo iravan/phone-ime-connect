@@ -294,6 +294,11 @@ Escape. Because these are simulated keystrokes, they're subject to the same
 Accessibility/Wayland gates as typing (see below) and, unlike text, have no
 clipboard fallback if a Wayland compositor blocks them.
 
+**Auto-send speed & help.** The phone page sends a message automatically after
+a short typing pause. The **1s / 3s** button in the header toggles that delay —
+switch to 3s if messages fire before you finish typing (handy for slower typing
+or long dictation). The **?** button opens a short usage guide.
+
 > The phone page also locks zoom (no pinch or double-tap zoom) so the keyboard
 > and buttons stay put while you type.
 
