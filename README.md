@@ -38,6 +38,33 @@ account, no cloud service, and no app to install.
 > you already carry. Dictate a long message, an email, a commit description, or
 > a paragraph of notes hands-free, then keep working at the desktop.
 
+**Who it's for, and the philosophy behind it.** For most people the phone has
+become the primary text-input device -- it's the one gadget that's always in
+hand, and manufacturers pour enormous effort into making its IME (input method
+editor) fast and accurate: gesture/swipe typing, aggressive prediction and
+autocorrect, per-language layout tuning, handwriting recognition, and top-tier
+voice input. Years of daily use build real muscle memory there. Many people are
+simply faster and more accurate typing on their phone than on a desktop
+keyboard.
+
+That gap is widest for **stroke-based and complex scripts**. Entering Chinese on
+a desktop, for example, is genuinely awkward: you have to install and configure
+an input method, pick a scheme (Pinyin, Zhuyin, Cangjie, Wubi, stroke...), and
+juggle candidate lists with the keyboard -- and handwriting or stroke input with
+a mouse is painful. Phones solve this beautifully out of the box: on-screen
+handwriting, stroke and radical input on a touch surface, swipe, and voice all
+just work, and the recognizer is tuned by the vendor for exactly that script.
+The same holds for Japanese, Korean, Thai, emoji, and mixed-language text.
+
+So the philosophy is deliberately humble: **don't reinvent the input method --
+relay the one the user already has and trusts.** Rather than building yet another
+desktop IME, PhoneInputConnect lets your phone do what it's already best at, then
+delivers the finished text to whatever has focus on your computer. Meet people
+where their typing skill already lives, add zero setup, keep it local and
+private, and make it work into *any* app on *any* desktop OS. The tool should be
+invisible -- the phone's keyboard is the product; this just carries its output
+across the room.
+
 **Where this sits in the bigger picture.** The core idea -- using your phone as
 a wireless input method (an IME digitizer or a direct text relay) -- is no
 longer exotic; it's becoming a standard ecosystem feature. Major platform
