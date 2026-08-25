@@ -41,7 +41,11 @@ jobs:
         # Names the release artifact with the crate version so a downloaded
         # zip is self-identifying (e.g. PhoneInputConnect-0.4.8-macos-arm64.zip)
         # regardless of whether this run came from a tag or workflow_dispatch.
-        run: echo "APP_VERSION=$(grep -m1 '^version' Cargo.toml | cut -d'\"' -f2)" >> "$GITHUB_ENV"
+        # Block scalar + a single-char `"` delimiter -- an inline `cut -d'\"'`
+        # leaks the backslash in as a two-char delimiter and yields "".
+        run: |
+          VERSION=$(grep -m1 '^version' Cargo.toml | cut -d '"' -f2)
+          echo "APP_VERSION=$VERSION" >> "$GITHUB_ENV"
 
       - name: Install Rust (stable, aarch64-apple-darwin)
         run: |
