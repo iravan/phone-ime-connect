@@ -50,7 +50,7 @@ const EN: Strings = Strings {
     hint_reconnecting: "The same code still works for a bit in case it reconnects on its \
                          own; scan again if it doesn't.",
     status_waiting: "Waiting for a phone to scan the code below",
-    history_header: "Recent messages",
+    history_header: "Received messages",
     history_empty: "No messages yet",
     copy_to_clipboard_tooltip: "Copy to clipboard",
     tray_show_window: "Show window",
@@ -68,7 +68,7 @@ const ZH_HANT: Strings = Strings {
     status_reconnecting: "手機已中斷連線 — 正在等待重新連線…",
     hint_reconnecting: "同一組代碼仍可短暫使用，以便自動重新連線；若無法自動重連，請重新掃描。",
     status_waiting: "請使用手機掃描下方的代碼",
-    history_header: "近期訊息",
+    history_header: "已接收的訊息",
     history_empty: "尚無訊息",
     copy_to_clipboard_tooltip: "複製到剪貼簿",
     tray_show_window: "顯示視窗",

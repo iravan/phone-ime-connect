@@ -12,8 +12,9 @@ use objc2::rc::Retained;
 use objc2::runtime::{AnyObject, NSObject};
 use objc2::{define_class, msg_send, sel, AllocAnyThread, DefinedClass, MainThreadMarker};
 use objc2_app_kit::{
-    NSAutoresizingMaskOptions, NSButton, NSColor, NSFont, NSImage, NSImageView, NSLayoutAttribute,
-    NSLineBreakMode, NSStackView, NSTextField, NSUserInterfaceLayoutOrientation, NSView,
+    NSAutoresizingMaskOptions, NSBox, NSBoxType, NSButton, NSColor, NSFont, NSImage, NSImageView,
+    NSLayoutAttribute, NSLineBreakMode, NSStackView, NSTextAlignment, NSTextField,
+    NSUserInterfaceLayoutOrientation, NSView,
 };
 use objc2_foundation::{NSData, NSEdgeInsets, NSSize, NSString};
 use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
@@ -60,7 +61,10 @@ pub struct Content {
     hint: Retained<NSTextField>,
     qr: Retained<NSImageView>,
     history: Retained<NSTextField>,
-    // Hidden while there's no history; touched from apply_snapshot.
+    // The whole "Received messages" section (separator + header + clear
+    // button) is shown only once there's history; toggled from apply_snapshot.
+    separator: Retained<NSBox>,
+    messages_header: Retained<NSTextField>,
     clear_button: Retained<NSButton>,
     // Kept alive but not otherwise touched: the button weakly references the
     // target, and the stack/button are also retained by the view hierarchy.
@@ -107,31 +111,65 @@ impl Content {
         };
         clear_button.setHidden(true); // shown only once there's history
 
-        // Selectable so the user can highlight a received message and copy it
-        // (Cmd+C) -- the whole point is getting text off the phone. Slightly
-        // muted so the QR/status stay the focus until messages arrive.
+        // --- "Received messages" section --------------------------------
+        // A rule separates the pairing area (QR/status) from the message
+        // log so the two read as distinct sections.
+        let separator = NSBox::new(mtm);
+        separator.setBoxType(NSBoxType::Separator);
+        separator.setHidden(true);
+
+        // A small left-aligned section title above the messages.
+        let messages_header = label(s.history_header, mtm);
+        messages_header.setFont(Some(&NSFont::boldSystemFontOfSize(12.0)));
+        messages_header.setTextColor(Some(&NSColor::secondaryLabelColor()));
+        messages_header.setAlignment(NSTextAlignment::Left);
+        messages_header.setHidden(true);
+
+        // The message log itself: left-aligned and full-strength text so it's
+        // easy to read, and selectable so a message can be copied (Cmd+C).
         let history = label("", mtm);
         history.setSelectable(true);
         history.setFont(Some(&NSFont::systemFontOfSize(13.0)));
-        history.setTextColor(Some(&NSColor::secondaryLabelColor()));
+        history.setAlignment(NSTextAlignment::Left);
 
         let stack = NSStackView::new(mtm);
         stack.setOrientation(NSUserInterfaceLayoutOrientation::Vertical);
-        stack.setSpacing(14.0);
+        stack.setSpacing(16.0);
         stack.setAlignment(NSLayoutAttribute::CenterX);
-        // Breathing room around the whole dashboard instead of edge-to-edge.
+        // Generous margins instead of edge-to-edge.
         stack.setEdgeInsets(NSEdgeInsets {
-            top: 24.0,
-            left: 24.0,
-            bottom: 24.0,
-            right: 24.0,
+            top: 28.0,
+            left: 28.0,
+            bottom: 28.0,
+            right: 28.0,
         });
         stack.addArrangedSubview(&status);
         stack.addArrangedSubview(&qr);
         stack.addArrangedSubview(&hint);
         stack.addArrangedSubview(&button);
+        stack.addArrangedSubview(&separator);
+        stack.addArrangedSubview(&messages_header);
         stack.addArrangedSubview(&history);
         stack.addArrangedSubview(&clear_button);
+
+        // A fixed content column so the message text left-aligns into a tidy
+        // block (rather than hugging its own width and reading as centered).
+        const COL: f64 = 340.0;
+        for v in [
+            status.as_ref() as &NSView,
+            hint.as_ref(),
+            button.as_ref(),
+            separator.as_ref(),
+            messages_header.as_ref(),
+            history.as_ref(),
+            clear_button.as_ref(),
+        ] {
+            v.widthAnchor().constraintEqualToConstant(COL).setActive(true);
+        }
+
+        // Extra air around the separator so the two sections feel distinct.
+        stack.setCustomSpacing_afterView(24.0, &button);
+        stack.setCustomSpacing_afterView(6.0, &separator);
 
         // Fill the content view and track its resizes.
         stack.setFrame(content.bounds());
@@ -146,6 +184,8 @@ impl Content {
             hint,
             qr,
             history,
+            separator,
+            messages_header,
             clear_button,
             _action_target: action_target,
             _button: button,
@@ -200,7 +240,12 @@ impl Content {
             }
         }
         set_text(&self.history, &lines);
-        self.clear_button.setHidden(lines.is_empty());
+        // Show the whole "Received messages" section only once there's history.
+        let has_history = !lines.is_empty();
+        self.separator.setHidden(!has_history);
+        self.messages_header.setHidden(!has_history);
+        self.history.setHidden(!has_history);
+        self.clear_button.setHidden(!has_history);
     }
 
     fn set_qr(&self, snapshot: &serde_json::Value) {
