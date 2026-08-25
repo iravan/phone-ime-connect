@@ -21,30 +21,35 @@ use winit::window::Window;
 
 use crate::server::PairingServer;
 
-/// The AppKit target object whose action method the "New code" button fires.
-/// NSButton only weakly references its target, so the owning [`Content`]
-/// keeps this alive.
-struct RegenerateIvars {
+/// The AppKit target object whose action methods the dashboard buttons fire
+/// ("New code" and "Clear history"). NSButton only weakly references its
+/// target, so the owning [`Content`] keeps this alive.
+struct ActionIvars {
     server: Arc<PairingServer>,
 }
 
 define_class!(
     #[unsafe(super(NSObject))]
-    #[name = "PICRegenerateTarget"]
-    #[ivars = RegenerateIvars]
-    struct RegenerateTarget;
+    #[name = "PICActionTarget"]
+    #[ivars = ActionIvars]
+    struct ActionTarget;
 
-    impl RegenerateTarget {
+    impl ActionTarget {
         #[unsafe(method(regenerate:))]
         fn regenerate(&self, _sender: Option<&AnyObject>) {
             self.ivars().server.regenerate_token();
         }
+
+        #[unsafe(method(clearHistory:))]
+        fn clear_history(&self, _sender: Option<&AnyObject>) {
+            self.ivars().server.clear_history();
+        }
     }
 );
 
-impl RegenerateTarget {
+impl ActionTarget {
     fn new(server: Arc<PairingServer>) -> Retained<Self> {
-        let this = Self::alloc().set_ivars(RegenerateIvars { server });
+        let this = Self::alloc().set_ivars(ActionIvars { server });
         unsafe { msg_send![super(this), init] }
     }
 }
@@ -55,9 +60,11 @@ pub struct Content {
     hint: Retained<NSTextField>,
     qr: Retained<NSImageView>,
     history: Retained<NSTextField>,
+    // Hidden while there's no history; touched from apply_snapshot.
+    clear_button: Retained<NSButton>,
     // Kept alive but not otherwise touched: the button weakly references the
     // target, and the stack/button are also retained by the view hierarchy.
-    _regenerate_target: Retained<RegenerateTarget>,
+    _action_target: Retained<ActionTarget>,
     _button: Retained<NSButton>,
     _stack: Retained<NSStackView>,
 }
@@ -75,19 +82,31 @@ impl Content {
         let qr = NSImageView::new(mtm);
         let hint = label(s.hint_scan, mtm);
 
-        let regenerate_target = RegenerateTarget::new(server);
-        // Unsafe only because the action selector must exist on the target
-        // (it does: `RegenerateTarget`'s `regenerate:`).
+        let action_target = ActionTarget::new(server);
+        // Unsafe only because the action selectors must exist on the target
+        // (they do: `ActionTarget`'s `regenerate:` and `clearHistory:`).
         let button = unsafe {
             NSButton::buttonWithTitle_target_action(
                 &NSString::from_str(s.button_new_code),
-                Some(&regenerate_target),
+                Some(&action_target),
                 Some(sel!(regenerate:)),
                 mtm,
             )
         };
+        let clear_button = unsafe {
+            NSButton::buttonWithTitle_target_action(
+                &NSString::from_str(s.button_clear_history),
+                Some(&action_target),
+                Some(sel!(clearHistory:)),
+                mtm,
+            )
+        };
+        clear_button.setHidden(true); // shown only once there's history
 
+        // Selectable so the user can highlight a received message and copy it
+        // (Cmd+C) -- the whole point is getting text off the phone.
         let history = label("", mtm);
+        history.setSelectable(true);
 
         let stack = NSStackView::new(mtm);
         stack.setOrientation(NSUserInterfaceLayoutOrientation::Vertical);
@@ -98,6 +117,7 @@ impl Content {
         stack.addArrangedSubview(&hint);
         stack.addArrangedSubview(&button);
         stack.addArrangedSubview(&history);
+        stack.addArrangedSubview(&clear_button);
 
         // Fill the content view and track its resizes.
         stack.setFrame(content.bounds());
@@ -112,7 +132,8 @@ impl Content {
             hint,
             qr,
             history,
-            _regenerate_target: regenerate_target,
+            clear_button,
+            _action_target: action_target,
             _button: button,
             _stack: stack,
         }
@@ -165,6 +186,7 @@ impl Content {
             }
         }
         set_text(&self.history, &lines);
+        self.clear_button.setHidden(lines.is_empty());
     }
 
     fn set_qr(&self, snapshot: &serde_json::Value) {
