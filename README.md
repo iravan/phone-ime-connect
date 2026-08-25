@@ -28,6 +28,16 @@ your preferred keyboard, autocorrect, and dictation. PhoneInputConnect turns it
 into an ad hoc keyboard for whatever window you're focused on -- with no
 account, no cloud service, and no app to install.
 
+> **The killer use case: voice dictation.** Modern phones have excellent, fast,
+> on-device speech-to-text -- usually far better than what your desktop offers,
+> especially for non-English or mixed-language speech. With PhoneInputConnect you
+> tap the mic on your phone keyboard, talk, and the recognized text lands in
+> **any** desktop app -- your editor, chat box, terminal, search bar, a form --
+> not just apps that happen to support dictation. It effectively gives every
+> program on your computer a voice-input button, powered by the best recognizer
+> you already carry. Dictate a long message, an email, a commit description, or
+> a paragraph of notes hands-free, then keep working at the desktop.
+
 **Where this sits in the bigger picture.** The core idea -- using your phone as
 a wireless input method (an IME digitizer or a direct text relay) -- is no
 longer exotic; it's becoming a standard ecosystem feature. Major platform
