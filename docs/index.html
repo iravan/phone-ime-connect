@@ -4,65 +4,112 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>PhoneInputConnect — type on your computer from your phone</title>
-<meta name="description" content="Type on your computer by texting it from your phone. Scan a QR code, type (or dictate) on your phone, and it lands in the focused window. No account, no cloud, no app.">
+<meta name="description" content="Type on your computer by texting it from your phone. Scan a QR code, type or dictate on your phone, and it lands in the focused window. No account, no cloud, no app.">
 <link rel="icon" href="icon-256.png">
 <style>
   :root{
-    --bg:#0d1117; --panel:#161b22; --border:#30363d; --fg:#e6edf3;
-    --muted:#9aa7b2; --accent:#3b82f6; --accent-fg:#fff; --code:#1f2630;
-    --maxw:820px;
+    --bg:#0b0f16; --bg2:#0e141d; --panel:#151c27; --panel2:#1b2431;
+    --border:#26313f; --fg:#e8eef6; --muted:#9fb0c3; --accent:#4f8cff;
+    --accent2:#7b5cff; --accent-fg:#fff; --ok:#37d399; --code:#0f1620;
+    --maxw:900px; --shadow:0 10px 40px rgba(0,0,0,.35);
   }
   @media (prefers-color-scheme: light){
-    :root{ --bg:#f6f8fa; --panel:#fff; --border:#d0d7de; --fg:#1f2328;
-           --muted:#57606a; --code:#eef1f4; }
+    :root{ --bg:#f5f7fb; --bg2:#eef2f8; --panel:#fff; --panel2:#f3f6fb;
+      --border:#dbe2ec; --fg:#1c2430; --muted:#5a6a7d; --code:#eef2f7;
+      --shadow:0 10px 34px rgba(30,50,90,.10); }
   }
   *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--fg);
+  html{scroll-behavior:smooth}
+  body{margin:0;background:
+      radial-gradient(1200px 600px at 50% -200px, rgba(79,140,255,.18), transparent 60%),
+      var(--bg);
+    color:var(--fg);
     font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans",
     "Noto Sans CJK TC","Noto Sans CJK SC","Noto Sans CJK JP","Noto Sans CJK KR",
-    "PingFang TC","PingFang SC","Hiragino Sans","Microsoft JhengHei",sans-serif;}
-  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 20px 80px}
-  header{text-align:center;padding:56px 20px 8px}
-  .logo{width:84px;height:84px;border-radius:20px;box-shadow:0 6px 24px rgba(0,0,0,.25)}
-  h1{font-size:2rem;margin:.5rem 0 .25rem;letter-spacing:-.02em}
-  .tag{color:var(--muted);font-size:1.1rem;margin:0}
-  .cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin:22px 0 6px}
-  .btn{display:inline-block;padding:10px 18px;border-radius:9px;text-decoration:none;
-    font-weight:600;border:1px solid var(--border);color:var(--fg);background:var(--panel)}
-  .btn.primary{background:var(--accent);color:var(--accent-fg);border-color:transparent}
-  .tabs{position:sticky;top:0;z-index:5;display:flex;gap:6px;flex-wrap:wrap;
-    justify-content:center;padding:14px 0;margin:18px 0 8px;background:var(--bg);
-    border-bottom:1px solid var(--border)}
-  .tab{cursor:pointer;padding:8px 14px;border-radius:999px;border:1px solid var(--border);
-    background:var(--panel);color:var(--fg);font-size:.95rem;font-weight:600}
-  .tab[aria-selected="true"]{background:var(--accent);color:var(--accent-fg);border-color:transparent}
-  section.lang{display:none}
-  section.lang.active{display:block;animation:fade .18s ease}
-  @keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
-  h2{font-size:1.3rem;margin:2rem 0 .6rem;padding-top:.4rem}
-  .callout{background:var(--panel);border:1px solid var(--border);border-left:4px solid var(--accent);
-    border-radius:10px;padding:14px 18px;margin:18px 0}
-  ul{padding-left:1.2em}
-  li{margin:.3em 0}
-  code{background:var(--code);padding:.15em .4em;border-radius:5px;font-size:.9em}
-  table{border-collapse:collapse;width:100%;margin:14px 0;font-size:.95rem;overflow:hidden;
-    border:1px solid var(--border);border-radius:10px}
-  th,td{border:1px solid var(--border);padding:8px 12px;text-align:left;vertical-align:top}
-  th{background:var(--panel)}
-  .muted{color:var(--muted)}
-  footer{text-align:center;color:var(--muted);margin-top:48px;font-size:.9rem}
-  a{color:var(--accent)}
-  hr{border:none;border-top:1px solid var(--border);margin:28px 0}
+    "PingFang TC","PingFang SC","Hiragino Sans","Microsoft JhengHei","Malgun Gothic",sans-serif;
+    -webkit-font-smoothing:antialiased;}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 20px}
+  a{color:var(--accent);text-decoration:none}
+  a:hover{text-decoration:underline}
+
+  /* hero */
+  header{text-align:center;padding:64px 20px 12px}
+  .logo{width:88px;height:88px;border-radius:22px;box-shadow:var(--shadow)}
+  h1{font-size:2.3rem;margin:.6rem 0 .2rem;letter-spacing:-.03em;
+    background:linear-gradient(120deg,var(--fg),var(--accent));
+    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .tag{color:var(--muted);font-size:1.18rem;margin:.2rem auto 0;max-width:32ch}
+  .cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin:24px 0 4px}
+  .btn{display:inline-flex;align-items:center;gap:8px;padding:11px 20px;border-radius:11px;
+    font-weight:650;border:1px solid var(--border);color:var(--fg);background:var(--panel);
+    transition:transform .12s ease, box-shadow .12s ease}
+  .btn:hover{transform:translateY(-1px);text-decoration:none;box-shadow:var(--shadow)}
+  .btn.primary{background:linear-gradient(120deg,var(--accent),var(--accent2));
+    color:var(--accent-fg);border-color:transparent}
+
+  /* language tabs */
+  .tabs{position:sticky;top:0;z-index:10;display:flex;gap:6px;flex-wrap:wrap;
+    justify-content:center;padding:12px 0;margin:20px 0 6px;
+    background:color-mix(in srgb, var(--bg) 82%, transparent);
+    backdrop-filter:blur(10px);border-bottom:1px solid var(--border)}
+  .tab{cursor:pointer;padding:8px 15px;border-radius:999px;border:1px solid var(--border);
+    background:var(--panel);color:var(--fg);font-size:.95rem;font-weight:650;
+    transition:all .12s ease}
+  .tab:hover{border-color:var(--accent)}
+  .tab[aria-selected="true"]{background:linear-gradient(120deg,var(--accent),var(--accent2));
+    color:var(--accent-fg);border-color:transparent}
+
+  section{margin:40px 0}
+  h2{font-size:1.5rem;margin:0 0 6px;letter-spacing:-.02em}
+  .sub{color:var(--muted);margin:0 0 20px}
+  .lead{font-size:1.08rem}
+  .callout{background:linear-gradient(120deg,var(--panel),var(--panel2));
+    border:1px solid var(--border);border-left:4px solid var(--accent);
+    border-radius:14px;padding:16px 20px;margin:22px 0;box-shadow:var(--shadow)}
+
+  /* diagram */
+  .diagram{background:var(--panel);border:1px solid var(--border);border-radius:16px;
+    padding:18px;box-shadow:var(--shadow);overflow:hidden}
+  .diagram svg{width:100%;height:auto;display:block}
+  .node rect{fill:var(--panel2);stroke:var(--border)}
+  .node .glyph{font-size:30px}
+  .node text{fill:var(--fg)}
+  .flowlabel{fill:var(--muted);font-size:12.5px}
+  .wire{stroke:var(--accent);stroke-width:2.2;fill:none}
+  .wire.dash{stroke:var(--muted);stroke-dasharray:5 5;stroke-width:1.6}
+  .packet{fill:var(--accent)}
+  .packet.b{fill:var(--accent2)}
+  @keyframes flow1{0%{transform:translateX(0);opacity:0}12%{opacity:1}88%{opacity:1}100%{transform:translateX(196px);opacity:0}}
+  @keyframes flow2{0%{transform:translateX(0);opacity:0}12%{opacity:1}88%{opacity:1}100%{transform:translateX(188px);opacity:0}}
+  .p1{animation:flow1 2.4s ease-in-out infinite}
+  .p2{animation:flow2 2.4s ease-in-out infinite;animation-delay:1.2s}
+  @media (prefers-reduced-motion: reduce){.p1,.p2{animation:none;opacity:.9}}
+
+  /* step + card grids */
+  .steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin-top:8px}
+  .step{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:16px 18px;position:relative}
+  .step .n{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:9px;
+    font-weight:800;color:var(--accent-fg);background:linear-gradient(120deg,var(--accent),var(--accent2));margin-bottom:8px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:16px 18px}
+  ul.who{padding-left:1.2em}
+  ul.who li{margin:.4em 0}
+  .note{color:var(--muted);font-size:.95rem;margin-top:14px}
+
+  footer{text-align:center;color:var(--muted);margin:56px 0 40px;font-size:.9rem}
+  hr{border:none;border-top:1px solid var(--border);margin:8px 0}
+  [hidden]{display:none!important}
 </style>
 </head>
 <body>
+
 <header>
   <img class="logo" src="icon-256.png" alt="PhoneInputConnect logo">
   <h1>PhoneInputConnect</h1>
-  <p class="tag" data-i18n="tag">Type on your computer by texting it from your phone.</p>
+  <p class="tag" data-i18n="tag"></p>
   <div class="cta">
-    <a class="btn primary" href="https://github.com/iravan/phone-ime-connect/releases" data-i18n="download">Download</a>
-    <a class="btn" href="https://github.com/iravan/phone-ime-connect" data-i18n="repo">View on GitHub</a>
+    <a class="btn primary" href="https://github.com/iravan/phone-ime-connect/releases"><span>⬇</span><span data-i18n="download"></span></a>
+    <a class="btn" href="https://github.com/iravan/phone-ime-connect"><span>★</span><span data-i18n="github"></span></a>
   </div>
 </header>
 
@@ -76,232 +123,293 @@
 
 <div class="wrap">
 
-<!-- ENGLISH -->
-<section class="lang" data-lang="en">
-  <p>Run a small app on your computer. It shows a QR code; scan it with your phone
-  (same Wi-Fi, no app install), type a message on the page that opens, and it's
-  instantly typed into whatever window has focus on your computer — as if you'd
-  typed it yourself. <strong>No account, no cloud, no phone app.</strong></p>
+  <section>
+    <p class="lead" data-i18n="intro"></p>
+    <div class="callout" data-i18n="voice"></div>
+  </section>
 
-  <div class="callout">
-    <strong>The killer use case: voice dictation.</strong> Modern phones have fast,
-    accurate on-device speech-to-text — usually better than your computer's,
-    especially for non-English or mixed-language speech. Tap the mic on your phone
-    keyboard, talk, and the text lands in <strong>any</strong> desktop app: editor,
-    chat, terminal, search bar, a form. It gives every program a voice-input button.
-  </div>
+  <!-- MECHANISM -->
+  <section>
+    <h2 data-i18n="howTitle"></h2>
+    <p class="sub" data-i18n="howIntro"></p>
 
-  <h2>Who it's for</h2>
-  <ul>
-    <li><strong>CJK / complex-script users</strong> — Chinese, Japanese, Korean, Thai… far easier via the phone's handwriting/stroke/voice IME than a desktop input method.</li>
-    <li><strong>Heavy phone typists</strong> with swipe/prediction muscle memory who are faster on the phone.</li>
-    <li><strong>Voice-input users</strong> who want to dictate into any desktop app.</li>
-    <li><strong>Accessibility users</strong> for whom touch, handwriting, or voice is easier than a keyboard.</li>
-    <li><strong>Privacy-conscious, cross-ecosystem users</strong> — local, no account, any phone → any desktop OS.</li>
-  </ul>
+    <div class="diagram">
+      <svg viewBox="0 0 920 300" role="img" aria-labelledby="diagt">
+        <title id="diagt" data-i18n="diagTitle"></title>
 
-  <h2>The philosophy</h2>
-  <p>The phone is now the primary text-input device — manufacturers pour huge effort
-  into its IME (swipe, prediction, handwriting, voice). The gap is widest for
-  stroke-based scripts: entering Chinese on a desktop means configuring an input
-  method and juggling candidate lists, while phones handle handwriting, stroke,
-  swipe, and voice out of the box. So the idea is humble: <strong>don't reinvent the
-  input method — relay the one you already trust.</strong> The phone's keyboard is the
-  product; this just carries its output across the room.</p>
+        <!-- top wire A -> B, with QR/TLS label + moving packet -->
+        <path class="wire" d="M188 96 H392" marker-end="url(#arw)"/>
+        <text class="flowlabel" x="290" y="82" text-anchor="middle" data-i18n="diagArrow1"></text>
+        <circle class="packet p1" cx="188" cy="96" r="5"/>
 
-  <table>
-    <tr><th></th><th>Built-in OS features</th><th>PhoneInputConnect</th></tr>
-    <tr><td>Setup</td><td>Accounts + linked devices</td><td>Scan a QR code</td></tr>
-    <tr><td>Devices</td><td>Usually same vendor only</td><td>Any phone → any desktop OS</td></tr>
-    <tr><td>Data path</td><td>Often via the cloud</td><td>Local LAN only, encrypted</td></tr>
-    <tr><td>Openness</td><td>Opaque OS subsystem</td><td>One small open-source binary</td></tr>
-  </table>
+        <!-- wire B -> C -->
+        <path class="wire" d="M566 96 H744" marker-end="url(#arw)"/>
+        <text class="flowlabel" x="655" y="82" text-anchor="middle" data-i18n="diagArrow2"></text>
+        <circle class="packet b p2" cx="566" cy="96" r="5"/>
 
-  <h2>Beyond the desktop</h2>
-  <p><strong>Any device that is a display plus a cursor — but no real keyboard — has
-  the same text-input problem</strong>, and the same phone-relay solves it: game
-  consoles (search, passwords, messages), <strong>karaoke machines</strong> (song
-  search, especially brutal for CJK titles — a phone brings full IME, handwriting,
-  and voice "just say the song name"), smart TVs, kiosks, VR headsets, car
-  infotainment. Cheap to build (QR + a tiny local page + WebSocket + inject),
-  cross-vendor, zero install. <strong>Stop making on-screen keyboards less bad —
-  let the phone be the keyboard.</strong></p>
-</section>
+        <!-- return dashed B -> A (echo) -->
+        <path class="wire dash" d="M392 150 H188" marker-end="url(#arwm)"/>
+        <text class="flowlabel" x="290" y="168" text-anchor="middle" data-i18n="diagArrow3"></text>
 
-<!-- 繁體中文 -->
-<section class="lang" data-lang="zh-Hant">
-  <p>在電腦上執行這個小程式，它會顯示一個 QR code；用手機掃描（同一個 Wi‑Fi、不用安裝任何
-  App），在開啟的網頁輸入文字，內容就會即時輸入到電腦上目前作用中的視窗——就像你親手打的一樣。
-  <strong>不需帳號、不經雲端、不用安裝手機程式。</strong></p>
+        <!-- phone -->
+        <g class="node">
+          <rect x="40" y="70" width="150" height="150" rx="16"/>
+          <text class="glyph" x="115" y="130" text-anchor="middle">📱</text>
+          <text x="115" y="170" text-anchor="middle" font-size="13" data-i18n="diagPhone"></text>
+        </g>
 
-  <div class="callout">
-    <strong>最強用途：語音輸入。</strong> 現代手機的語音辨識又快又準，通常比電腦內建的更好，
-    對非英語與中英夾雜尤其明顯。按下手機鍵盤的麥克風、開口說，辨識出的文字就會送進電腦上
-    <strong>任何</strong>一個程式：編輯器、聊天框、終端機、搜尋列、表單。等於替每個程式加上語音輸入。
-  </div>
+        <!-- app / computer -->
+        <g class="node">
+          <rect x="392" y="55" width="174" height="180" rx="16"/>
+          <text class="glyph" x="479" y="120" text-anchor="middle">💻</text>
+          <text x="479" y="160" text-anchor="middle" font-size="12.5" data-i18n="diagApp1"></text>
+          <text x="479" y="180" text-anchor="middle" font-size="12.5" fill="var(--muted)" data-i18n="diagApp2"></text>
+        </g>
 
-  <h2>適合誰</h2>
-  <ul>
-    <li><strong>使用中日韓等複雜文字的人</strong>——手機的手寫／筆劃／語音輸入遠比桌面輸入法順手。</li>
-    <li><strong>手機重度打字者</strong>——多年滑動與預測的肌肉記憶，比實體鍵盤更快。</li>
-    <li><strong>想用語音輸入到任何程式的人。</strong></li>
-    <li><strong>有無障礙需求者</strong>——觸控、手寫或語音比鍵盤更輕鬆。</li>
-    <li><strong>重視隱私、跨生態系的人</strong>——本機、免帳號，任何手機對任何桌面系統。</li>
-  </ul>
+        <!-- focused window -->
+        <g class="node">
+          <rect x="744" y="70" width="150" height="150" rx="16"/>
+          <text class="glyph" x="819" y="130" text-anchor="middle">🎯</text>
+          <text x="819" y="170" text-anchor="middle" font-size="13" data-i18n="diagTarget"></text>
+        </g>
 
-  <h2>理念</h2>
-  <p>手機已是多數人主要的文字輸入裝置，廠商在其輸入法上投入巨大心力（滑動、預測、手寫、語音）。
-  這個差距在筆劃型文字上最明顯：在桌面輸入中文要設定輸入法、挑選方案、還要在候選字之間切換，
-  手機卻能開箱即用手寫、筆劃、滑動與語音。所以理念很謙虛：<strong>不重造輸入法，而是把你早已信任的
-  輸入法接過來。</strong>手機鍵盤才是主角，這只是把它的輸出傳到另一邊。</p>
+        <defs>
+          <marker id="arw" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+            <path d="M0 0 L9 4.5 L0 9 z" fill="var(--accent)"/>
+          </marker>
+          <marker id="arwm" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+            <path d="M0 0 L9 4.5 L0 9 z" fill="var(--muted)"/>
+          </marker>
+        </defs>
+      </svg>
+    </div>
 
-  <h2>不只桌面電腦</h2>
-  <p><strong>任何「有螢幕、有游標、卻沒有好鍵盤」的裝置都有同樣的輸入難題</strong>，同一套手機接力都能
-  解決：遊戲主機（搜尋、帳密、訊息）、<strong>卡拉OK 點歌機</strong>（點歌尤其痛苦，中日韓歌名用遙控器
-  幾乎無解——手機帶來完整輸入法、手寫，甚至「用說的」點歌）、智慧電視、自助機台、VR 眼鏡、車載系統。
-  實作便宜（QR＋一個小網頁＋WebSocket＋注入文字）、跨品牌、免安裝。<strong>與其把螢幕鍵盤做得比較不爛，
-  不如讓手機直接當鍵盤。</strong></p>
-</section>
+    <div class="steps">
+      <div class="step"><div class="n">1</div><div data-i18n="step1"></div></div>
+      <div class="step"><div class="n">2</div><div data-i18n="step2"></div></div>
+      <div class="step"><div class="n">3</div><div data-i18n="step3"></div></div>
+      <div class="step"><div class="n">4</div><div data-i18n="step4"></div></div>
+      <div class="step"><div class="n">5</div><div data-i18n="step5"></div></div>
+      <div class="step"><div class="n">6</div><div data-i18n="step6"></div></div>
+    </div>
+  </section>
 
-<!-- 简体中文 -->
-<section class="lang" data-lang="zh-Hans">
-  <p>在电脑上运行这个小程序，它会显示一个二维码；用手机扫描（同一个 Wi‑Fi、无需安装任何
-  App），在打开的网页输入文字，内容就会实时输入到电脑上当前活动的窗口——就像你亲手打的一样。
-  <strong>无需账号、不经云端、无需安装手机程序。</strong></p>
+  <!-- SECURITY -->
+  <section>
+    <h2 data-i18n="secTitle"></h2>
+    <p class="sub" data-i18n="secIntro"></p>
+    <div class="grid">
+      <div class="card" data-i18n="sec1"></div>
+      <div class="card" data-i18n="sec2"></div>
+      <div class="card" data-i18n="sec3"></div>
+      <div class="card" data-i18n="sec4"></div>
+    </div>
+  </section>
 
-  <div class="callout">
-    <strong>最强用途：语音输入。</strong> 现代手机的语音识别又快又准，通常比电脑自带的更好，
-    对非英语与中英混合尤其明显。按下手机键盘的麦克风、开口说，识别出的文字就会送进电脑上
-    <strong>任意</strong>一个程序：编辑器、聊天框、终端、搜索栏、表单。等于给每个程序加上语音输入。
-  </div>
+  <!-- WHO -->
+  <section>
+    <h2 data-i18n="whoTitle"></h2>
+    <ul class="who">
+      <li data-i18n="who1"></li>
+      <li data-i18n="who2"></li>
+      <li data-i18n="who3"></li>
+      <li data-i18n="who4"></li>
+      <li data-i18n="who5"></li>
+    </ul>
+  </section>
 
-  <h2>适合谁</h2>
-  <ul>
-    <li><strong>使用中日韩等复杂文字的人</strong>——手机的手写／笔画／语音输入远比桌面输入法顺手。</li>
-    <li><strong>手机重度打字者</strong>——多年滑动与预测的肌肉记忆，比实体键盘更快。</li>
-    <li><strong>想用语音输入到任意程序的人。</strong></li>
-    <li><strong>有无障碍需求者</strong>——触控、手写或语音比键盘更轻松。</li>
-    <li><strong>重视隐私、跨生态系统的人</strong>——本地、免账号，任何手机对任何桌面系统。</li>
-  </ul>
+  <!-- BEYOND -->
+  <section>
+    <h2 data-i18n="beyondTitle"></h2>
+    <p data-i18n="beyond"></p>
+  </section>
 
-  <h2>理念</h2>
-  <p>手机已是多数人主要的文字输入设备，厂商在其输入法上投入巨大心力（滑动、预测、手写、语音）。
-  这个差距在笔画型文字上最明显：在桌面输入中文要设置输入法、挑选方案、还要在候选字之间切换，
-  手机却能开箱即用手写、笔画、滑动与语音。所以理念很谦虚：<strong>不重造输入法，而是把你早已信任的
-  输入法接过来。</strong>手机键盘才是主角，这只是把它的输出传到另一边。</p>
+  <hr>
+  <p class="note" style="text-align:center" data-i18n="readme"></p>
 
-  <h2>不只桌面电脑</h2>
-  <p><strong>任何“有屏幕、有光标、却没有好键盘”的设备都有同样的输入难题</strong>，同一套手机接力都能
-  解决：游戏主机（搜索、账号密码、消息）、<strong>卡拉OK 点歌机</strong>（点歌尤其痛苦，中日韩歌名用遥控器
-  几乎无解——手机带来完整输入法、手写，甚至“用说的”点歌）、智能电视、自助机、VR 眼镜、车载系统。
-  实现便宜（二维码＋一个小网页＋WebSocket＋注入文字）、跨品牌、免安装。<strong>与其把屏幕键盘做得没那么烂，
-  不如让手机直接当键盘。</strong></p>
-</section>
-
-<!-- 日本語 -->
-<section class="lang" data-lang="ja">
-  <p>PC で小さなアプリを起動すると QR コードが表示されます。スマホでスキャンし（同じ Wi‑Fi、
-  アプリのインストール不要）、開いたページに文字を打つと、PC 側で今アクティブなウィンドウに
-  即座に入力されます——自分でタイプしたのと同じように。<strong>アカウント不要、クラウド不要、
-  スマホアプリ不要。</strong></p>
-
-  <div class="callout">
-    <strong>一番の使いどころ：音声入力。</strong> 最近のスマホの音声認識は速く正確で、たいてい
-    PC 内蔵より優秀です（特に非英語や混在言語）。スマホのマイクを押して話すだけで、認識された
-    テキストが PC 上の<strong>任意の</strong>アプリ（エディタ、チャット、ターミナル、検索欄、フォーム）に入ります。
-  </div>
-
-  <h2>こんな人に</h2>
-  <ul>
-    <li><strong>中国語・日本語・韓国語など複雑な文字を使う人</strong>——手書き・画数・音声はスマホが断然快適。</li>
-    <li><strong>スマホ入力に慣れた人</strong>——フリック／予測変換で物理キーボードより速い。</li>
-    <li><strong>どんなアプリにも音声で入力したい人。</strong></li>
-    <li><strong>アクセシビリティを重視する人</strong>——タッチ・手書き・音声の方が楽。</li>
-    <li><strong>プライバシー重視・複数 OS の人</strong>——ローカル・アカウント不要、どのスマホからどの OS へも。</li>
-  </ul>
-
-  <h2>哲学</h2>
-  <p>スマホは今や主要な文字入力デバイスで、各社が IME に多大な労力を注いでいます（フリック、予測、
-  手書き、音声）。差が最も大きいのは画数ベースの文字です。デスクトップでの日本語・中国語入力は
-  設定と候補選択が煩雑ですが、スマホは手書き・画数・フリック・音声が最初から使えます。だから発想は
-  控えめ：<strong>入力方式を作り直さず、ユーザーが既に信頼する入力方式を「中継」する。</strong>
-  主役はスマホのキーボードで、これはその出力を運ぶだけです。</p>
-
-  <h2>デスクトップだけではありません</h2>
-  <p><strong>画面とカーソルはあるが、まともなキーボードがない機器</strong>はどれも同じ入力問題を抱えます：
-  ゲーム機（検索・パスワード・メッセージ）、<strong>カラオケ</strong>（曲名検索、とくに日中韓の曲名はリモコンでは
-  ほぼ不可能——スマホなら完全な入力・手書き・「声で曲名を言う」検索まで）、スマート TV、キオスク、VR、車載。
-  実装は安価（QR＋小さなページ＋WebSocket＋テキスト注入）、機種横断、インストール不要。<strong>画面キーボードを
-  少しマシにするより、スマホをキーボードにしましょう。</strong></p>
-</section>
-
-<!-- 한국어 -->
-<section class="lang" data-lang="ko">
-  <p>PC에서 작은 앱을 실행하면 QR 코드가 표시됩니다. 휴대폰으로 스캔하고(같은 Wi‑Fi, 앱 설치
-  불필요) 열린 페이지에 입력하면, PC에서 현재 활성화된 창에 즉시 입력됩니다——직접 타이핑한
-  것처럼요. <strong>계정 없음, 클라우드 없음, 휴대폰 앱 없음.</strong></p>
-
-  <div class="callout">
-    <strong>최고의 활용: 음성 입력.</strong> 요즘 휴대폰의 음성 인식은 빠르고 정확하며, 보통 PC 기본
-    기능보다 낫습니다(특히 비영어·혼합 언어). 마이크를 누르고 말하면 인식된 텍스트가 PC의
-    <strong>어떤</strong> 앱에든(편집기, 채팅, 터미널, 검색창, 양식) 들어갑니다.
-  </div>
-
-  <h2>이런 분께</h2>
-  <ul>
-    <li><strong>중국어·일본어·한국어 등 복잡한 문자 사용자</strong>——손글씨·획·음성은 휴대폰이 훨씬 편합니다.</li>
-    <li><strong>휴대폰 입력에 익숙한 분</strong>——스와이프·예측 변환으로 물리 키보드보다 빠릅니다.</li>
-    <li><strong>어떤 앱에든 음성으로 입력하고 싶은 분.</strong></li>
-    <li><strong>접근성이 중요한 분</strong>——터치·손글씨·음성이 더 편합니다.</li>
-    <li><strong>프라이버시·크로스 생태계 중시</strong>——로컬·계정 불필요, 어떤 휴대폰에서 어떤 OS로든.</li>
-  </ul>
-
-  <h2>철학</h2>
-  <p>휴대폰은 이제 주된 텍스트 입력 장치이며, 제조사는 IME에 큰 노력을 들입니다(스와이프, 예측,
-  손글씨, 음성). 격차가 가장 큰 것은 획 기반 문자입니다. 데스크톱에서 중국어·일본어 입력은 설정과
-  후보 선택이 번거롭지만, 휴대폰은 손글씨·획·스와이프·음성을 기본으로 처리합니다. 그래서 발상은
-  겸손합니다: <strong>입력기를 새로 만들지 않고, 이미 신뢰하는 입력기를 '중계'합니다.</strong>
-  주인공은 휴대폰 키보드이고, 이것은 그 출력을 옮길 뿐입니다.</p>
-
-  <h2>데스크톱만이 아닙니다</h2>
-  <p><strong>화면과 커서는 있지만 제대로 된 키보드가 없는 기기</strong>는 모두 같은 입력 문제를 겪습니다:
-  게임 콘솔(검색·비밀번호·메시지), <strong>노래방 기기</strong>(곡 검색, 특히 중·일·한 곡명은 리모컨으로
-  사실상 불가능——휴대폰이면 완전한 입력·손글씨·"음성으로 곡명 말하기"까지), 스마트 TV, 키오스크, VR, 차량 인포테인먼트.
-  구현이 저렴하고(QR＋작은 페이지＋WebSocket＋텍스트 주입) 기기 横断적이며 설치가 필요 없습니다.
-  <strong>화면 키보드를 덜 나쁘게 만들기보다, 휴대폰을 키보드로 삼으세요.</strong></p>
-</section>
-
-<hr>
-<p class="muted" style="text-align:center">
-  Full setup, troubleshooting, and security details are in the
-  <a href="https://github.com/iravan/phone-ime-connect#readme">README</a>.
-</p>
-
-<footer>
-  <a href="https://github.com/iravan/phone-ime-connect">iravan/phone-ime-connect</a> · MIT/Apache-2.0
-</footer>
+  <footer>
+    <a href="https://github.com/iravan/phone-ime-connect">iravan/phone-ime-connect</a> · MIT / Apache-2.0
+  </footer>
 </div>
 
 <script>
-  (function(){
-    var tabs = Array.prototype.slice.call(document.querySelectorAll('.tab'));
-    var secs = Array.prototype.slice.call(document.querySelectorAll('section.lang'));
-    function show(lang){
-      tabs.forEach(function(t){ t.setAttribute('aria-selected', t.dataset.lang===lang); });
-      secs.forEach(function(s){ s.classList.toggle('active', s.dataset.lang===lang); });
-      try{ localStorage.setItem('pic_lang', lang); }catch(e){}
-      document.documentElement.lang = lang;
-    }
-    tabs.forEach(function(t){ t.addEventListener('click', function(){ show(t.dataset.lang); }); });
-    // pick initial: saved > browser language > English
-    var saved; try{ saved = localStorage.getItem('pic_lang'); }catch(e){}
-    var have = tabs.map(function(t){ return t.dataset.lang; });
-    var nav = (navigator.language||'en');
-    var guess = nav.indexOf('zh')===0 ? (/hant|tw|hk|mo/i.test(nav)?'zh-Hant':'zh-Hans')
-              : nav.indexOf('ja')===0 ? 'ja'
-              : nav.indexOf('ko')===0 ? 'ko' : 'en';
-    show(have.indexOf(saved)>=0 ? saved : guess);
-  })();
+const I18N = {
+  "en":{
+    tag:"Type on your computer by texting it from your phone.",
+    download:"Download", github:"View on GitHub",
+    intro:"Run a small app on your computer. It shows a QR code; scan it with your phone (same Wi‑Fi, no app install), type or dictate on the page that opens, and it lands in whatever window has focus — as if you typed it yourself. <strong>No account, no cloud, no phone app.</strong>",
+    voice:"<strong>The killer use case: voice dictation.</strong> Tap the mic on your phone keyboard, talk, and the recognized text lands in <strong>any</strong> desktop app — editor, chat, terminal, search bar, a form. Your phone's speech‑to‑text becomes a voice‑input button for every program.",
+    howTitle:"How it works", howIntro:"Everything happens on your own Wi‑Fi — nothing goes to the cloud.",
+    diagTitle:"Flow: phone → your computer → the focused window",
+    diagPhone:"Your phone", diagApp1:"PhoneInputConnect", diagApp2:"(on your computer)", diagTarget:"Focused window",
+    diagArrow1:"① Scan QR · encrypted WebSocket", diagArrow2:"② Clipboard + paste (Ctrl/Cmd+V)", diagArrow3:"echoed back as a chat bubble",
+    step1:"<strong>Launch.</strong> The app opens a native window with a QR code and starts a tiny web server bound only to your LAN address, over TLS.",
+    step2:"<strong>Pair.</strong> Scan the QR with your phone camera. Its URL carries a 256‑bit token; the phone opens a chat page served from your computer.",
+    step3:"<strong>Connect.</strong> The phone opens a WebSocket. The token is verified, then rotated so the QR can't be reused. Only one phone at a time.",
+    step4:"<strong>Type or dictate.</strong> Send a message; it's echoed to the phone as a chat bubble and delivered to the computer.",
+    step5:"<strong>Deliver.</strong> Your clipboard is saved, the message is placed on it and pasted (Ctrl/Cmd+V) into the focused window, then your clipboard is restored.",
+    step6:"<strong>Resilient.</strong> If the phone briefly drops, the same code keeps working for ~45s so it reconnects without a re‑scan.",
+    secTitle:"Security & privacy", secIntro:"Designed to be safe on ordinary, untrusted Wi‑Fi.",
+    sec1:"🔒 <strong>Local only.</strong> Binds to your LAN address, never 0.0.0.0 — and refuses to start if none is found.",
+    sec2:"🔐 <strong>Encrypted.</strong> TLS with a per‑user self‑signed certificate (the reason for the one‑time browser warning).",
+    sec3:"🎟️ <strong>Unguessable pairing.</strong> A 256‑bit token, rotated the moment a phone connects, expiring in 5 min if unused.",
+    sec4:"🧹 <strong>Nothing saved.</strong> History is an in‑memory ring of the last 10 messages; your clipboard is restored after every paste.",
+    whoTitle:"Who it's for",
+    who1:"<strong>CJK / complex‑script users</strong> — Chinese, Japanese, Korean, Thai… far easier via the phone's handwriting / stroke / voice IME.",
+    who2:"<strong>Heavy phone typists</strong> with swipe & prediction muscle memory who are faster on the phone.",
+    who3:"<strong>Voice‑input users</strong> who want to dictate into any desktop app.",
+    who4:"<strong>Accessibility users</strong> for whom touch, handwriting, or voice beats a keyboard.",
+    who5:"<strong>Privacy‑conscious, cross‑ecosystem users</strong> — local, no account, any phone → any desktop OS.",
+    beyondTitle:"Beyond the desktop",
+    beyond:"<strong>Any device that is a display plus a cursor — but no real keyboard — has the same text‑input problem</strong>, and the same phone‑relay solves it: game consoles (search, passwords, messages), <strong>karaoke machines</strong> (song search, brutal for CJK titles — a phone brings full IME, handwriting, and “just say the song name” voice search), smart TVs, kiosks, VR headsets, car infotainment. Cheap to build, cross‑vendor, zero install. <strong>Stop making on‑screen keyboards less bad — let the phone be the keyboard.</strong>",
+    readme:"Full setup, troubleshooting, and security details are in the <a href='https://github.com/iravan/phone-ime-connect#readme'>README →</a>"
+  },
+  "zh-Hant":{
+    tag:"用手機打字，直接輸入到電腦。",
+    download:"下載", github:"在 GitHub 查看",
+    intro:"在電腦上執行這個小程式，它會顯示一個 QR code；用手機掃描（同一個 Wi‑Fi、不用安裝任何 App），在開啟的網頁輸入或用說的，內容就會即時輸入到目前作用中的視窗——就像你親手打的一樣。<strong>不需帳號、不經雲端、不用安裝手機程式。</strong>",
+    voice:"<strong>最強用途：語音輸入。</strong>按下手機鍵盤的麥克風、開口說，辨識出的文字就會送進<strong>任何</strong>一個電腦程式——編輯器、聊天框、終端機、搜尋列、表單。等於替每個程式加上語音輸入。",
+    howTitle:"運作原理", howIntro:"一切都在你自己的 Wi‑Fi 上完成，不經雲端。",
+    diagTitle:"流程：手機 → 你的電腦 → 作用中的視窗",
+    diagPhone:"你的手機", diagApp1:"PhoneInputConnect", diagApp2:"（在你的電腦上）", diagTarget:"作用中的視窗",
+    diagArrow1:"① 掃描 QR · 加密 WebSocket", diagArrow2:"② 剪貼簿 + 貼上（Ctrl/Cmd+V）", diagArrow3:"以聊天泡泡回傳",
+    step1:"<strong>啟動。</strong>程式開啟一個原生視窗顯示 QR code，並啟動一個只綁定你區網位址、以 TLS 加密的小型網頁伺服器。",
+    step2:"<strong>配對。</strong>用手機相機掃描 QR。網址帶有 256 位元 token；手機開啟由你電腦提供的聊天頁面。",
+    step3:"<strong>連線。</strong>手機建立 WebSocket，驗證 token 後立即更換，讓 QR 無法被重用。同時只允許一支手機。",
+    step4:"<strong>輸入或用說的。</strong>送出訊息，會以聊天泡泡回傳到手機，並送往電腦。",
+    step5:"<strong>投遞。</strong>先保存你的剪貼簿，把訊息放上剪貼簿並貼到作用中的視窗（Ctrl/Cmd+V），再還原你原本的剪貼簿。",
+    step6:"<strong>斷線容忍。</strong>手機若短暫掉線，同一組 QR 約 45 秒內仍有效，可自動重連、無需重掃。",
+    secTitle:"安全與隱私", secIntro:"設計上可安全用於一般、不可信的 Wi‑Fi。",
+    sec1:"🔒 <strong>僅限本機網路。</strong>只綁定你的區網位址、絕不用 0.0.0.0；找不到位址就拒絕啟動。",
+    sec2:"🔐 <strong>全程加密。</strong>採用每位使用者自簽的 TLS 憑證（也就是瀏覽器一次性警告的原因）。",
+    sec3:"🎟️ <strong>無法猜到的配對。</strong>256 位元 token，手機一連上就更換，五分鐘未使用即失效。",
+    sec4:"🧹 <strong>不留任何資料。</strong>紀錄只是記憶體中最近 10 則的環形緩衝；每次貼上後都還原剪貼簿。",
+    whoTitle:"適合誰",
+    who1:"<strong>使用中日韓等複雜文字的人</strong>——手機的手寫／筆劃／語音輸入遠比桌面輸入法順手。",
+    who2:"<strong>手機重度打字者</strong>——多年滑動與預測的肌肉記憶，比實體鍵盤更快。",
+    who3:"<strong>想用語音輸入到任何程式的人。</strong>",
+    who4:"<strong>有無障礙需求者</strong>——觸控、手寫或語音比鍵盤更輕鬆。",
+    who5:"<strong>重視隱私、跨生態系的人</strong>——本機、免帳號，任何手機對任何桌面系統。",
+    beyondTitle:"不只桌面電腦",
+    beyond:"<strong>任何「有螢幕、有游標、卻沒有好鍵盤」的裝置都有同樣的輸入難題</strong>，同一套手機接力都能解決：遊戲主機（搜尋、帳密、訊息）、<strong>卡拉OK 點歌機</strong>（點歌尤其痛苦，中日韓歌名用遙控器幾乎無解——手機帶來完整輸入法、手寫，甚至「用說的」點歌）、智慧電視、自助機台、VR、車載系統。實作便宜、跨品牌、免安裝。<strong>與其把螢幕鍵盤做得比較不爛，不如讓手機直接當鍵盤。</strong>",
+    readme:"完整安裝、疑難排解與安全性說明請見 <a href='https://github.com/iravan/phone-ime-connect#readme'>README →</a>"
+  },
+  "zh-Hans":{
+    tag:"用手机打字，直接输入到电脑。",
+    download:"下载", github:"在 GitHub 查看",
+    intro:"在电脑上运行这个小程序，它会显示一个二维码；用手机扫描（同一个 Wi‑Fi、无需安装任何 App），在打开的网页输入或用说的，内容就会实时输入到当前活动的窗口——就像你亲手打的一样。<strong>无需账号、不经云端、无需安装手机程序。</strong>",
+    voice:"<strong>最强用途：语音输入。</strong>按下手机键盘的麦克风、开口说，识别出的文字就会送进<strong>任意</strong>一个电脑程序——编辑器、聊天框、终端、搜索栏、表单。等于给每个程序加上语音输入。",
+    howTitle:"工作原理", howIntro:"一切都在你自己的 Wi‑Fi 上完成，不经云端。",
+    diagTitle:"流程：手机 → 你的电脑 → 活动窗口",
+    diagPhone:"你的手机", diagApp1:"PhoneInputConnect", diagApp2:"（在你的电脑上）", diagTarget:"活动窗口",
+    diagArrow1:"① 扫描二维码 · 加密 WebSocket", diagArrow2:"② 剪贴板 + 粘贴（Ctrl/Cmd+V）", diagArrow3:"以聊天气泡回传",
+    step1:"<strong>启动。</strong>程序打开一个原生窗口显示二维码，并启动一个只绑定你局域网地址、以 TLS 加密的小型网页服务器。",
+    step2:"<strong>配对。</strong>用手机相机扫描二维码。网址带有 256 位 token；手机打开由你电脑提供的聊天页面。",
+    step3:"<strong>连接。</strong>手机建立 WebSocket，验证 token 后立即更换，使二维码无法重用。同时只允许一部手机。",
+    step4:"<strong>输入或用说的。</strong>发送消息，会以聊天气泡回传到手机，并送往电脑。",
+    step5:"<strong>投递。</strong>先保存你的剪贴板，把消息放上剪贴板并粘贴到活动窗口（Ctrl/Cmd+V），再还原你原本的剪贴板。",
+    step6:"<strong>断线容忍。</strong>手机若短暂掉线，同一组二维码约 45 秒内仍有效，可自动重连、无需重扫。",
+    secTitle:"安全与隐私", secIntro:"设计上可安全用于一般、不可信的 Wi‑Fi。",
+    sec1:"🔒 <strong>仅限本地网络。</strong>只绑定你的局域网地址、绝不用 0.0.0.0；找不到地址就拒绝启动。",
+    sec2:"🔐 <strong>全程加密。</strong>采用每位用户自签的 TLS 证书（也就是浏览器一次性警告的原因）。",
+    sec3:"🎟️ <strong>无法猜到的配对。</strong>256 位 token，手机一连上就更换，五分钟未使用即失效。",
+    sec4:"🧹 <strong>不留任何数据。</strong>记录只是内存中最近 10 条的环形缓冲；每次粘贴后都还原剪贴板。",
+    whoTitle:"适合谁",
+    who1:"<strong>使用中日韩等复杂文字的人</strong>——手机的手写／笔画／语音输入远比桌面输入法顺手。",
+    who2:"<strong>手机重度打字者</strong>——多年滑动与预测的肌肉记忆，比实体键盘更快。",
+    who3:"<strong>想用语音输入到任意程序的人。</strong>",
+    who4:"<strong>有无障碍需求者</strong>——触控、手写或语音比键盘更轻松。",
+    who5:"<strong>重视隐私、跨生态系统的人</strong>——本地、免账号，任何手机对任何桌面系统。",
+    beyondTitle:"不只桌面电脑",
+    beyond:"<strong>任何“有屏幕、有光标、却没有好键盘”的设备都有同样的输入难题</strong>，同一套手机接力都能解决：游戏主机（搜索、账号密码、消息）、<strong>卡拉OK 点歌机</strong>（点歌尤其痛苦，中日韩歌名用遥控器几乎无解——手机带来完整输入法、手写，甚至“用说的”点歌）、智能电视、自助机、VR、车载系统。实现便宜、跨品牌、免安装。<strong>与其把屏幕键盘做得没那么烂，不如让手机直接当键盘。</strong>",
+    readme:"完整安装、疑难排解与安全性说明请见 <a href='https://github.com/iravan/phone-ime-connect#readme'>README →</a>"
+  },
+  "ja":{
+    tag:"スマホで入力し、そのまま PC へ。",
+    download:"ダウンロード", github:"GitHub で見る",
+    intro:"PC で小さなアプリを起動すると QR コードが表示されます。スマホでスキャンし（同じ Wi‑Fi、アプリ不要）、開いたページで入力または音声入力すると、今アクティブなウィンドウに即座に入ります——自分でタイプしたように。<strong>アカウント不要・クラウド不要・スマホアプリ不要。</strong>",
+    voice:"<strong>一番の使いどころ：音声入力。</strong>スマホのマイクを押して話すだけで、認識テキストが<strong>任意の</strong>アプリ（エディタ・チャット・ターミナル・検索欄・フォーム）に入ります。全アプリに音声入力ボタンが付くようなものです。",
+    howTitle:"仕組み", howIntro:"すべて自分の Wi‑Fi 内で完結し、クラウドには一切送りません。",
+    diagTitle:"流れ：スマホ → PC → アクティブウィンドウ",
+    diagPhone:"あなたのスマホ", diagApp1:"PhoneInputConnect", diagApp2:"（PC 側）", diagTarget:"アクティブウィンドウ",
+    diagArrow1:"① QR スキャン · 暗号化 WebSocket", diagArrow2:"② クリップボード + 貼付（Ctrl/Cmd+V）", diagArrow3:"チャット吹き出しで返信",
+    step1:"<strong>起動。</strong>QR コードを表示するネイティブウィンドウを開き、LAN アドレスだけにバインドした小さな Web サーバーを TLS で起動します。",
+    step2:"<strong>ペアリング。</strong>スマホのカメラで QR をスキャン。URL には 256 ビットのトークンが含まれ、PC から配信されるチャットページが開きます。",
+    step3:"<strong>接続。</strong>スマホが WebSocket を開くとトークンを検証し、直後に更新して QR を再利用不可に。接続は常に 1 台のみ。",
+    step4:"<strong>入力／音声。</strong>メッセージを送るとチャット吹き出しでスマホに戻り、PC へ届きます。",
+    step5:"<strong>配信。</strong>現在のクリップボードを保存し、メッセージを載せてアクティブウィンドウに貼り付け（Ctrl/Cmd+V）、その後クリップボードを復元します。",
+    step6:"<strong>切断に強い。</strong>スマホが一時的に切れても、同じ QR は約 45 秒間有効。再スキャン不要で再接続します。",
+    secTitle:"セキュリティとプライバシー", secIntro:"信頼できない一般的な Wi‑Fi でも安全なように設計。",
+    sec1:"🔒 <strong>ローカル限定。</strong>LAN アドレスだけにバインドし 0.0.0.0 は使わない。見つからなければ起動を拒否。",
+    sec2:"🔐 <strong>暗号化。</strong>ユーザーごとの自己署名 TLS 証明書（ブラウザの一度きりの警告の理由）。",
+    sec3:"🎟️ <strong>推測不能なペアリング。</strong>256 ビットのトークンは接続時に更新され、未使用なら 5 分で失効。",
+    sec4:"🧹 <strong>保存なし。</strong>履歴は直近 10 件のメモリ上リングのみ。貼付のたびにクリップボードを復元。",
+    whoTitle:"こんな人に",
+    who1:"<strong>中国語・日本語・韓国語など複雑な文字を使う人</strong>——手書き・画数・音声はスマホが断然快適。",
+    who2:"<strong>スマホ入力に慣れた人</strong>——フリック／予測変換で物理キーボードより速い。",
+    who3:"<strong>どんなアプリにも音声で入力したい人。</strong>",
+    who4:"<strong>アクセシビリティ重視の人</strong>——タッチ・手書き・音声の方が楽。",
+    who5:"<strong>プライバシー重視・複数 OS の人</strong>——ローカル・アカウント不要、どのスマホからどの OS へも。",
+    beyondTitle:"デスクトップだけではありません",
+    beyond:"<strong>画面とカーソルはあるが、まともなキーボードがない機器</strong>はどれも同じ入力問題を抱えます：ゲーム機（検索・パスワード・メッセージ）、<strong>カラオケ</strong>（曲名検索、とくに日中韓の曲名はリモコンではほぼ不可能——スマホなら完全な入力・手書き・「声で曲名」検索まで）、スマート TV、キオスク、VR、車載。実装は安価・機種横断・インストール不要。<strong>画面キーボードを少しマシにするより、スマホをキーボードにしましょう。</strong>",
+    readme:"詳しいセットアップ・トラブル対処・セキュリティは <a href='https://github.com/iravan/phone-ime-connect#readme'>README →</a>"
+  },
+  "ko":{
+    tag:"휴대폰으로 입력해 PC에 그대로.",
+    download:"다운로드", github:"GitHub에서 보기",
+    intro:"PC에서 작은 앱을 실행하면 QR 코드가 표시됩니다. 휴대폰으로 스캔하고(같은 Wi‑Fi, 앱 불필요) 열린 페이지에 입력하거나 말하면, 현재 활성화된 창에 즉시 입력됩니다——직접 타이핑한 것처럼요. <strong>계정 없음 · 클라우드 없음 · 휴대폰 앱 없음.</strong>",
+    voice:"<strong>최고의 활용: 음성 입력.</strong> 마이크를 누르고 말하면 인식된 텍스트가 <strong>어떤</strong> 앱에든(편집기·채팅·터미널·검색창·양식) 들어갑니다. 모든 프로그램에 음성 입력 버튼이 생기는 셈입니다.",
+    howTitle:"작동 방식", howIntro:"모든 것이 내 Wi‑Fi 안에서 이루어지며, 클라우드로 나가지 않습니다.",
+    diagTitle:"흐름: 휴대폰 → 내 PC → 활성 창",
+    diagPhone:"내 휴대폰", diagApp1:"PhoneInputConnect", diagApp2:"(내 PC)", diagTarget:"활성 창",
+    diagArrow1:"① QR 스캔 · 암호화 WebSocket", diagArrow2:"② 클립보드 + 붙여넣기(Ctrl/Cmd+V)", diagArrow3:"채팅 말풍선으로 회신",
+    step1:"<strong>실행.</strong> QR 코드를 표시하는 네이티브 창을 열고, LAN 주소에만 바인딩된 작은 웹 서버를 TLS로 시작합니다.",
+    step2:"<strong>페어링.</strong> 휴대폰 카메라로 QR을 스캔. URL에 256비트 토큰이 담겨 있고, PC가 제공하는 채팅 페이지가 열립니다.",
+    step3:"<strong>연결.</strong> 휴대폰이 WebSocket을 열면 토큰을 검증한 뒤 즉시 교체해 QR 재사용을 막습니다. 동시에 한 대만.",
+    step4:"<strong>입력 또는 음성.</strong> 메시지를 보내면 채팅 말풍선으로 휴대폰에 회신되고 PC로 전달됩니다.",
+    step5:"<strong>전달.</strong> 현재 클립보드를 저장하고, 메시지를 올려 활성 창에 붙여넣은(Ctrl/Cmd+V) 뒤 클립보드를 복원합니다.",
+    step6:"<strong>끊김에 강함.</strong> 휴대폰이 잠깐 끊겨도 같은 QR이 약 45초간 유효해 재스캔 없이 재연결됩니다.",
+    secTitle:"보안 & 프라이버시", secIntro:"신뢰할 수 없는 일반 Wi‑Fi에서도 안전하도록 설계.",
+    sec1:"🔒 <strong>로컬 전용.</strong> LAN 주소에만 바인딩하고 0.0.0.0은 쓰지 않으며, 없으면 시작을 거부합니다.",
+    sec2:"🔐 <strong>암호화.</strong> 사용자별 자체 서명 TLS 인증서(브라우저 1회 경고의 이유).",
+    sec3:"🎟️ <strong>추측 불가 페어링.</strong> 256비트 토큰은 연결 즉시 교체되고, 미사용 시 5분 후 만료.",
+    sec4:"🧹 <strong>저장 없음.</strong> 기록은 최근 10개의 메모리 링뿐이며, 붙여넣기마다 클립보드를 복원합니다.",
+    whoTitle:"이런 분께",
+    who1:"<strong>중국어·일본어·한국어 등 복잡한 문자 사용자</strong>——손글씨·획·음성은 휴대폰이 훨씬 편합니다.",
+    who2:"<strong>휴대폰 입력에 익숙한 분</strong>——스와이프·예측 변환으로 물리 키보드보다 빠릅니다.",
+    who3:"<strong>어떤 앱에든 음성으로 입력하고 싶은 분.</strong>",
+    who4:"<strong>접근성이 중요한 분</strong>——터치·손글씨·음성이 키보드보다 편합니다.",
+    who5:"<strong>프라이버시·크로스 생태계 중시</strong>——로컬·계정 불필요, 어떤 휴대폰에서 어떤 OS로든.",
+    beyondTitle:"데스크톱만이 아닙니다",
+    beyond:"<strong>화면과 커서는 있지만 제대로 된 키보드가 없는 기기</strong>는 모두 같은 입력 문제를 겪습니다: 게임 콘솔(검색·비밀번호·메시지), <strong>노래방 기기</strong>(곡 검색, 특히 중·일·한 곡명은 리모컨으로 사실상 불가능——휴대폰이면 완전한 입력·손글씨·“음성으로 곡명” 검색까지), 스마트 TV, 키오스크, VR, 차량 인포테인먼트. 구현이 저렴하고 기기 무관하며 설치가 필요 없습니다. <strong>화면 키보드를 덜 나쁘게 만들기보다, 휴대폰을 키보드로 삼으세요.</strong>",
+    readme:"자세한 설치·문제 해결·보안 내용은 <a href='https://github.com/iravan/phone-ime-connect#readme'>README →</a>"
+  }
+};
+
+(function(){
+  var tabs = Array.prototype.slice.call(document.querySelectorAll('.tab'));
+  var have = tabs.map(function(t){return t.dataset.lang;});
+  function apply(lang){
+    var d = I18N[lang] || I18N.en;
+    document.querySelectorAll('[data-i18n]').forEach(function(el){
+      var v = d[el.getAttribute('data-i18n')];
+      if(v==null) return;
+      // SVG <text>/<title> take plain text; everything else may contain markup.
+      if(el.namespaceURI && el.namespaceURI.indexOf('svg')>=0) el.textContent = v;
+      else el.innerHTML = v;
+    });
+    tabs.forEach(function(t){ t.setAttribute('aria-selected', t.dataset.lang===lang); });
+    document.documentElement.lang = lang;
+    try{ localStorage.setItem('pic_lang', lang); }catch(e){}
+  }
+  tabs.forEach(function(t){ t.addEventListener('click', function(){ apply(t.dataset.lang); }); });
+  var saved; try{ saved = localStorage.getItem('pic_lang'); }catch(e){}
+  var nav = (navigator.language||'en');
+  var guess = nav.indexOf('zh')===0 ? (/hant|tw|hk|mo/i.test(nav)?'zh-Hant':'zh-Hans')
+            : nav.indexOf('ja')===0 ? 'ja'
+            : nav.indexOf('ko')===0 ? 'ko' : 'en';
+  apply(have.indexOf(saved)>=0 ? saved : guess);
+})();
 </script>
 </body>
 </html>
