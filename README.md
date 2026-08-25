@@ -38,6 +38,13 @@ your preferred keyboard, autocorrect, and dictation. PhoneInputConnect turns it
 into an ad hoc keyboard for whatever window you're focused on -- with no
 account, no cloud service, and no app to install.
 
+**The problem it solves:** on a computer, entering anything that isn't plain
+English is painful -- switching input methods, a mouse-driven handwriting pad,
+candidate-list hunting, or dictation in the few apps that support it -- yet the
+best keyboard you own (your phone) can't reach your computer's apps. **The goal:
+let your phone type into any program on your computer, with zero setup and
+nothing ever leaving your network.**
+
 > **The killer use case: voice dictation.** Modern phones have excellent, fast,
 > on-device speech-to-text -- usually far better than what your desktop offers,
 > especially for non-English or mixed-language speech. With PhoneInputConnect you
