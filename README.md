@@ -11,6 +11,9 @@ Works on **Linux, Windows, and macOS** — each opens a small native window with
 the QR code, status, and recent history. No account, no cloud, no phone app.
 All three platforms are built and tested on real hardware.
 
+> 🌐 **[Read this in your language →](https://iravan.github.io/phone-ime-connect/)**
+> — English · 繁體中文 · 简体中文 · 日本語 · 한국어
+
 ---
 
 **Contents**
