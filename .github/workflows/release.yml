@@ -101,17 +101,21 @@ jobs:
       - name: Package
         shell: pwsh
         run: |
+          # Version the zip name (e.g. phone-input-connect-0.4.8-windows-x86_64.zip)
+          # so a downloaded file is self-identifying. .deb/.rpm already carry
+          # the version via cargo's own naming; this matches them.
+          $version = (Select-String -Path Cargo.toml -Pattern '^version = "(.*)"').Matches[0].Groups[1].Value
           New-Item -ItemType Directory -Path dist-windows | Out-Null
           Copy-Item target/release/phone-input-connect.exe dist-windows/
           Copy-Item README.md dist-windows/
           Copy-Item LICENSE dist-windows/
-          Compress-Archive -Path dist-windows/* -DestinationPath phone-input-connect-windows-x86_64.zip
+          Compress-Archive -Path dist-windows/* -DestinationPath "phone-input-connect-$version-windows-x86_64.zip"
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: phone-input-connect-windows
-          path: phone-input-connect-windows-x86_64.zip
+          path: phone-input-connect-*-windows-x86_64.zip
 
   publish:
     needs: [build-deb, build-rpm, build-windows]

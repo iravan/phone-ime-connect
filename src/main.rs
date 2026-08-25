@@ -32,8 +32,10 @@ use std::sync::Arc;
 use server::PairingServer;
 
 #[cfg(any(target_os = "linux", target_os = "windows"))]
-fn on_message_callback(injector: Arc<injector::Injector>) -> Arc<dyn Fn(String) + Send + Sync> {
-    Arc::new(move |text: String| injector.type_text(&text))
+fn on_message_callback(
+    injector: Arc<injector::Injector>,
+) -> Arc<dyn Fn(injector::InputEvent) + Send + Sync> {
+    Arc::new(move |event| injector.dispatch(event))
 }
 
 /// Shared by Linux and Windows, whose only real difference is which
