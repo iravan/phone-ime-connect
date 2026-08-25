@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, interactive-widget=resizes-content">
 <title>Desktop Input</title>
 <style>
   :root {
@@ -55,6 +55,10 @@
     flex: 1; overflow-y: auto; padding: 1rem;
     display: flex; flex-direction: column; gap: 0.5rem;
   }
+  /* Anchor messages to the bottom: when they don't fill the pane the first
+     one's auto top-margin pushes the stack down; once they overflow it
+     collapses to 0 and the pane scrolls normally. */
+  #history > :first-child { margin-top: auto; }
   .bubble {
     max-width: 80%; padding: 0.55rem 0.8rem; border-radius: 1rem;
     background: var(--bubble-bg); border: 1px solid var(--bubble-border);
@@ -336,6 +340,30 @@
       ws.send(JSON.stringify({ type: 'clear' }));
     }
     input.focus();
+  });
+
+  // Mobile keyboards shrink the *visual* viewport, not the layout viewport,
+  // so the browser scrolls the whole page up to keep the input in view --
+  // hiding the header and the message you just sent. Pin the app to the
+  // visual viewport (so the composer sits right above the keyboard, with the
+  // latest bubbles visible just above it) and keep the history scrolled to
+  // the bottom. `interactive-widget=resizes-content` handles this on
+  // Chromium; this covers iOS Safari, which resizes only the visual viewport.
+  var vv = window.visualViewport;
+  if (vv) {
+    var fitToViewport = function () {
+      document.body.style.height = vv.height + 'px';
+      window.scrollTo(0, 0);
+      historyEl.scrollTop = historyEl.scrollHeight;
+    };
+    vv.addEventListener('resize', fitToViewport);
+    vv.addEventListener('scroll', fitToViewport);
+    fitToViewport();
+  }
+  // Focusing the field opens the keyboard a frame later; stick to the bottom
+  // once it has settled so the most recent message stays in view.
+  input.addEventListener('focus', function () {
+    setTimeout(function () { historyEl.scrollTop = historyEl.scrollHeight; }, 150);
   });
 })();
 </script>
