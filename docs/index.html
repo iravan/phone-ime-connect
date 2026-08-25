@@ -74,13 +74,13 @@
   .node rect{fill:var(--panel2);stroke:var(--border)}
   .node .glyph{font-size:30px}
   .node text{fill:var(--fg)}
-  .flowlabel{fill:var(--muted);font-size:12.5px}
+  .flowlabel{fill:var(--muted);font-size:11.5px}
   .wire{stroke:var(--accent);stroke-width:2.2;fill:none}
   .wire.dash{stroke:var(--muted);stroke-dasharray:5 5;stroke-width:1.6}
   .packet{fill:var(--accent)}
   .packet.b{fill:var(--accent2)}
-  @keyframes flow1{0%{transform:translateX(0);opacity:0}12%{opacity:1}88%{opacity:1}100%{transform:translateX(196px);opacity:0}}
-  @keyframes flow2{0%{transform:translateX(0);opacity:0}12%{opacity:1}88%{opacity:1}100%{transform:translateX(188px);opacity:0}}
+  @keyframes flow1{0%{transform:translateX(0);opacity:0}12%{opacity:1}88%{opacity:1}100%{transform:translateX(236px);opacity:0}}
+  @keyframes flow2{0%{transform:translateX(0);opacity:0}12%{opacity:1}88%{opacity:1}100%{transform:translateX(236px);opacity:0}}
   .p1{animation:flow1 2.4s ease-in-out infinite}
   .p2{animation:flow2 2.4s ease-in-out infinite;animation-delay:1.2s}
   @media (prefers-reduced-motion: reduce){.p1,.p2{animation:none;opacity:.9}}
@@ -134,44 +134,8 @@
     <p class="sub" data-i18n="howIntro"></p>
 
     <div class="diagram">
-      <svg viewBox="0 0 920 300" role="img" aria-labelledby="diagt">
+      <svg viewBox="0 0 1000 300" role="img" aria-labelledby="diagt">
         <title id="diagt" data-i18n="diagTitle"></title>
-
-        <!-- top wire A -> B, with QR/TLS label + moving packet -->
-        <path class="wire" d="M188 96 H392" marker-end="url(#arw)"/>
-        <text class="flowlabel" x="290" y="82" text-anchor="middle" data-i18n="diagArrow1"></text>
-        <circle class="packet p1" cx="188" cy="96" r="5"/>
-
-        <!-- wire B -> C -->
-        <path class="wire" d="M566 96 H744" marker-end="url(#arw)"/>
-        <text class="flowlabel" x="655" y="82" text-anchor="middle" data-i18n="diagArrow2"></text>
-        <circle class="packet b p2" cx="566" cy="96" r="5"/>
-
-        <!-- return dashed B -> A (echo) -->
-        <path class="wire dash" d="M392 150 H188" marker-end="url(#arwm)"/>
-        <text class="flowlabel" x="290" y="168" text-anchor="middle" data-i18n="diagArrow3"></text>
-
-        <!-- phone -->
-        <g class="node">
-          <rect x="40" y="70" width="150" height="150" rx="16"/>
-          <text class="glyph" x="115" y="130" text-anchor="middle">📱</text>
-          <text x="115" y="170" text-anchor="middle" font-size="13" data-i18n="diagPhone"></text>
-        </g>
-
-        <!-- app / computer -->
-        <g class="node">
-          <rect x="392" y="55" width="174" height="180" rx="16"/>
-          <text class="glyph" x="479" y="120" text-anchor="middle">💻</text>
-          <text x="479" y="160" text-anchor="middle" font-size="12.5" data-i18n="diagApp1"></text>
-          <text x="479" y="180" text-anchor="middle" font-size="12.5" fill="var(--muted)" data-i18n="diagApp2"></text>
-        </g>
-
-        <!-- focused window -->
-        <g class="node">
-          <rect x="744" y="70" width="150" height="150" rx="16"/>
-          <text class="glyph" x="819" y="130" text-anchor="middle">🎯</text>
-          <text x="819" y="170" text-anchor="middle" font-size="13" data-i18n="diagTarget"></text>
-        </g>
 
         <defs>
           <marker id="arw" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
@@ -181,6 +145,36 @@
             <path d="M0 0 L9 4.5 L0 9 z" fill="var(--muted)"/>
           </marker>
         </defs>
+
+        <!-- nodes first, so labels drawn later stay on top -->
+        <g class="node">
+          <rect x="20" y="72" width="150" height="150" rx="16"/>
+          <text class="glyph" x="95" y="132" text-anchor="middle">📱</text>
+          <text x="95" y="174" text-anchor="middle" font-size="13" data-i18n="diagPhone"></text>
+        </g>
+        <g class="node">
+          <rect x="410" y="56" width="180" height="182" rx="16"/>
+          <text class="glyph" x="500" y="120" text-anchor="middle">💻</text>
+          <text x="500" y="162" text-anchor="middle" font-size="12.5" data-i18n="diagApp1"></text>
+          <text x="500" y="182" text-anchor="middle" font-size="11.5" fill="var(--muted)" data-i18n="diagApp2"></text>
+        </g>
+        <g class="node">
+          <rect x="830" y="72" width="150" height="150" rx="16"/>
+          <text class="glyph" x="905" y="132" text-anchor="middle">🎯</text>
+          <text x="905" y="174" text-anchor="middle" font-size="13" data-i18n="diagTarget"></text>
+        </g>
+
+        <!-- wires + moving packets -->
+        <path class="wire" d="M170 98 H406" marker-end="url(#arw)"/>
+        <path class="wire" d="M590 98 H826" marker-end="url(#arw)"/>
+        <path class="wire dash" d="M410 152 H174" marker-end="url(#arwm)"/>
+        <circle class="packet p1" cx="170" cy="98" r="5"/>
+        <circle class="packet b p2" cx="590" cy="98" r="5"/>
+
+        <!-- labels LAST so nothing paints over them -->
+        <text class="flowlabel" x="288" y="84" text-anchor="middle" data-i18n="diagArrow1"></text>
+        <text class="flowlabel" x="708" y="84" text-anchor="middle" data-i18n="diagArrow2"></text>
+        <text class="flowlabel" x="292" y="172" text-anchor="middle" data-i18n="diagArrow3"></text>
       </svg>
     </div>
 
