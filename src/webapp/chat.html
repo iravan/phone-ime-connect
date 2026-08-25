@@ -304,7 +304,7 @@
   // for AUTO_SEND_MS, or immediately on Enter. `composing` guards IME input
   // so a half-composed CJK character (candidate window still open) is never
   // sent mid-composition -- critical for this app's main audience.
-  var AUTO_SEND_MS = 2000;
+  var AUTO_SEND_MS = 1000;
   var idleTimer = null;
   var composing = false;
 
