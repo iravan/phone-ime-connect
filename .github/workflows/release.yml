@@ -23,7 +23,7 @@ jobs:
   build-deb:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install build dependencies
         run: sudo apt-get update && sudo apt-get install -y libgtk-4-dev libxdo-dev
@@ -38,7 +38,7 @@ jobs:
         run: cargo deb
 
       - name: Upload build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: phone-input-connect-deb
           path: target/debian/*.deb
@@ -50,7 +50,7 @@ jobs:
       - name: Install git (needed before checkout inside this container)
         run: dnf install -y git
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install build dependencies
         # libxkbcommon-devel: needed since enigo's "libei" feature (native
@@ -77,7 +77,7 @@ jobs:
         run: cargo generate-rpm
 
       - name: Upload build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: phone-input-connect-rpm
           path: target/generate-rpm/*.rpm
@@ -90,7 +90,7 @@ jobs:
     # `native-windows-gui` needs, same as a plain `cargo run` locally.
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -112,7 +112,7 @@ jobs:
           Compress-Archive -Path dist-windows/* -DestinationPath "phone-input-connect-$version-windows-x86_64.zip"
 
       - name: Upload build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: phone-input-connect-windows
           path: phone-input-connect-*-windows-x86_64.zip
@@ -122,7 +122,7 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: dist
           merge-multiple: true

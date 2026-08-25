@@ -35,7 +35,7 @@ jobs:
     # binary that runs on M3.
     runs-on: macos-14
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Read version from Cargo.toml
         # Names the release artifact with the crate version so a downloaded
@@ -102,13 +102,13 @@ jobs:
             "dist/PhoneInputConnect-${APP_VERSION}-macos-arm64.zip"
 
       - name: Upload build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: PhoneInputConnect-${{ env.APP_VERSION }}-macos-arm64
           path: dist/PhoneInputConnect-${{ env.APP_VERSION }}-macos-arm64.zip
 
       - name: Attach to release (tag builds only)
         if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: dist/PhoneInputConnect-${{ env.APP_VERSION }}-macos-arm64.zip
