@@ -63,6 +63,9 @@
   h2{font-size:1.5rem;margin:0 0 6px;letter-spacing:-.02em}
   .sub{color:var(--muted);margin:0 0 20px}
   .lead{font-size:1.08rem}
+  .flow-abstract{font-size:1.12rem;font-weight:650;text-align:center;line-height:1.9;
+    background:linear-gradient(120deg,var(--panel),var(--panel2));border:1px solid var(--border);
+    border-radius:14px;padding:18px 20px;margin-top:14px;box-shadow:var(--shadow)}
   .callout{background:linear-gradient(120deg,var(--panel),var(--panel2));
     border:1px solid var(--border);border-left:4px solid var(--accent);
     border-radius:14px;padding:16px 20px;margin:22px 0;box-shadow:var(--shadow)}
@@ -132,6 +135,13 @@
   <section>
     <h2 data-i18n="probTitle"></h2>
     <p data-i18n="prob"></p>
+  </section>
+
+  <!-- IN A NUTSHELL (abstract how-it-works) -->
+  <section>
+    <h2 data-i18n="nutTitle"></h2>
+    <p class="lead" data-i18n="nut"></p>
+    <p class="flow-abstract" data-i18n="nutFlow"></p>
   </section>
 
   <!-- MECHANISM -->
@@ -241,6 +251,9 @@ const I18N = {
     voice:"<strong>The killer use case: voice dictation.</strong> Tap the mic on your phone keyboard, talk, and the recognized text lands in <strong>any</strong> desktop app — editor, chat, terminal, search bar, a form. Your phone's speech‑to‑text becomes a voice‑input button for every program.",
     probTitle:"The problem — and the goal",
     prob:"On a computer, entering anything that isn't plain English is painful: switching input methods, wrestling a mouse‑driven handwriting pad, hunting through candidate lists, or dictating into the few apps that even support it. Meanwhile the best keyboard you own — your phone, with its tuned IME, handwriting, and voice — can't reach your computer's apps. <strong>The goal: let your phone type into any program on your computer, with zero setup and nothing ever leaving your network.</strong>",
+    nutTitle:"In a nutshell",
+    nut:"Your phone becomes a keyboard for your computer. Scan a QR code, type (or speak) on your phone, and the text appears in whatever window has focus. That's the whole idea — the detailed flow is just below.",
+    nutFlow:"📷 Scan the QR&nbsp;&nbsp;→&nbsp;&nbsp;⌨️ Type on your phone&nbsp;&nbsp;→&nbsp;&nbsp;💻 It appears on your computer",
     howTitle:"How it works", howIntro:"Everything happens on your own Wi‑Fi — nothing goes to the cloud.",
     diagTitle:"Flow: phone → your computer → the focused window",
     diagPhone:"Your phone", diagApp1:"PhoneInputConnect", diagApp2:"(on your computer)", diagTarget:"Focused window",
@@ -273,6 +286,9 @@ const I18N = {
     voice:"<strong>最強用途：語音輸入。</strong>按下手機鍵盤的麥克風、開口說，辨識出的文字就會送進<strong>任何</strong>一個電腦程式——編輯器、聊天框、終端機、搜尋列、表單。等於替每個程式加上語音輸入。",
     probTitle:"問題——以及目標",
     prob:"在電腦上，要輸入非純英文的內容很痛苦：切換輸入法、用滑鼠操作手寫板、在候選字裡翻找，或只能對少數支援聽寫的程式說話。然而你手上最好的鍵盤——你的手機，帶著調校過的輸入法、手寫與語音——卻碰不到電腦上的程式。<strong>目標：讓你的手機能打字進電腦上任何程式，零設定，而且資料完全不離開你的網路。</strong>",
+    nutTitle:"簡單來說",
+    nut:"把手機當成電腦的鍵盤。掃描 QR code，在手機上打字（或用說的），文字就會出現在目前作用中的視窗。概念就這麼簡單——完整流程就在下方。",
+    nutFlow:"📷 掃描 QR&nbsp;&nbsp;→&nbsp;&nbsp;⌨️ 在手機上打字&nbsp;&nbsp;→&nbsp;&nbsp;💻 出現在電腦上",
     howTitle:"運作原理", howIntro:"一切都在你自己的 Wi‑Fi 上完成，不經雲端。",
     diagTitle:"流程：手機 → 你的電腦 → 作用中的視窗",
     diagPhone:"你的手機", diagApp1:"PhoneInputConnect", diagApp2:"（在你的電腦上）", diagTarget:"作用中的視窗",
@@ -305,6 +321,9 @@ const I18N = {
     voice:"<strong>最强用途：语音输入。</strong>按下手机键盘的麦克风、开口说，识别出的文字就会送进<strong>任意</strong>一个电脑程序——编辑器、聊天框、终端、搜索栏、表单。等于给每个程序加上语音输入。",
     probTitle:"问题——以及目标",
     prob:"在电脑上，要输入非纯英文的内容很痛苦：切换输入法、用鼠标操作手写板、在候选字里翻找，或只能对少数支持听写的程序说话。然而你手上最好的键盘——你的手机，带着调校过的输入法、手写与语音——却够不到电脑上的程序。<strong>目标：让你的手机能打字进电脑上任意程序，零设置，而且数据完全不离开你的网络。</strong>",
+    nutTitle:"一句话说明",
+    nut:"把手机当成电脑的键盘。扫描二维码，在手机上打字（或用说的），文字就会出现在当前活动的窗口。概念就这么简单——完整流程就在下方。",
+    nutFlow:"📷 扫描二维码&nbsp;&nbsp;→&nbsp;&nbsp;⌨️ 在手机上打字&nbsp;&nbsp;→&nbsp;&nbsp;💻 出现在电脑上",
     howTitle:"工作原理", howIntro:"一切都在你自己的 Wi‑Fi 上完成，不经云端。",
     diagTitle:"流程：手机 → 你的电脑 → 活动窗口",
     diagPhone:"你的手机", diagApp1:"PhoneInputConnect", diagApp2:"（在你的电脑上）", diagTarget:"活动窗口",
@@ -337,6 +356,9 @@ const I18N = {
     voice:"<strong>一番の使いどころ：音声入力。</strong>スマホのマイクを押して話すだけで、認識テキストが<strong>任意の</strong>アプリ（エディタ・チャット・ターミナル・検索欄・フォーム）に入ります。全アプリに音声入力ボタンが付くようなものです。",
     probTitle:"課題——そして目標",
     prob:"PC では、英語以外の文字入力が苦痛です：入力方式の切り替え、マウスでの手書きパッド、候補リストの選択、あるいは対応する一部アプリでのみの音声入力。しかも最高のキーボード——調整された IME・手書き・音声を備えたあなたのスマホ——は PC のアプリに届きません。<strong>目標：スマホから PC のどんなプログラムにも入力できること。設定はゼロ、データはネットワークの外に一切出しません。</strong>",
+    nutTitle:"ひとことで言うと",
+    nut:"スマホを PC のキーボードにするだけ。QR をスキャンし、スマホで入力（または音声）すると、テキストが今アクティブなウィンドウに表示されます。仕組みはこれだけ——詳しい流れはすぐ下にあります。",
+    nutFlow:"📷 QR をスキャン&nbsp;&nbsp;→&nbsp;&nbsp;⌨️ スマホで入力&nbsp;&nbsp;→&nbsp;&nbsp;💻 PC に表示",
     howTitle:"仕組み", howIntro:"すべて自分の Wi‑Fi 内で完結し、クラウドには一切送りません。",
     diagTitle:"流れ：スマホ → PC → アクティブウィンドウ",
     diagPhone:"あなたのスマホ", diagApp1:"PhoneInputConnect", diagApp2:"（PC 側）", diagTarget:"アクティブウィンドウ",
@@ -369,6 +391,9 @@ const I18N = {
     voice:"<strong>최고의 활용: 음성 입력.</strong> 마이크를 누르고 말하면 인식된 텍스트가 <strong>어떤</strong> 앱에든(편집기·채팅·터미널·검색창·양식) 들어갑니다. 모든 프로그램에 음성 입력 버튼이 생기는 셈입니다.",
     probTitle:"문제——그리고 목표",
     prob:"PC에서는 영어가 아닌 텍스트 입력이 고통스럽습니다: 입력기 전환, 마우스로 손글씨 패드 조작, 후보 목록 뒤지기, 혹은 받아쓰기를 지원하는 일부 앱에서만 음성 입력. 그런데 정작 가장 좋은 키보드——잘 다듬어진 IME·손글씨·음성을 갖춘 당신의 휴대폰——은 PC의 앱에 닿지 못합니다. <strong>목표: 휴대폰으로 PC의 어떤 프로그램에든 입력하기. 설정은 전혀 없이, 데이터는 네트워크 밖으로 절대 나가지 않습니다.</strong>",
+    nutTitle:"한마디로",
+    nut:"휴대폰을 PC의 키보드로 쓰는 것뿐입니다. QR을 스캔하고 휴대폰에서 입력(또는 음성)하면 텍스트가 현재 활성화된 창에 나타납니다. 개념은 이게 전부예요 — 자세한 흐름은 바로 아래에 있습니다.",
+    nutFlow:"📷 QR 스캔&nbsp;&nbsp;→&nbsp;&nbsp;⌨️ 휴대폰에서 입력&nbsp;&nbsp;→&nbsp;&nbsp;💻 PC에 표시",
     howTitle:"작동 방식", howIntro:"모든 것이 내 Wi‑Fi 안에서 이루어지며, 클라우드로 나가지 않습니다.",
     diagTitle:"흐름: 휴대폰 → 내 PC → 활성 창",
     diagPhone:"내 휴대폰", diagApp1:"PhoneInputConnect", diagApp2:"(내 PC)", diagTarget:"활성 창",
