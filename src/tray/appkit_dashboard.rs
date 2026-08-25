@@ -13,7 +13,7 @@ use objc2::runtime::{AnyObject, NSObject};
 use objc2::{define_class, msg_send, sel, AllocAnyThread, DefinedClass, MainThreadMarker};
 use objc2_app_kit::{
     NSAutoresizingMaskOptions, NSButton, NSColor, NSFont, NSImage, NSImageView, NSLayoutAttribute,
-    NSStackView, NSTextField, NSUserInterfaceLayoutOrientation, NSView,
+    NSLineBreakMode, NSStackView, NSTextField, NSUserInterfaceLayoutOrientation, NSView,
 };
 use objc2_foundation::{NSData, NSEdgeInsets, NSSize, NSString};
 use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
@@ -223,11 +223,17 @@ impl Content {
     }
 }
 
-/// A non-editable, multi-line AppKit label.
+/// A non-editable, multi-line AppKit label. Wraps onto as many lines as
+/// needed rather than truncating with an ellipsis, so long status/hint
+/// text (e.g. the reconnecting message) is always shown in full.
 fn label(text: &str, mtm: MainThreadMarker) -> Retained<NSTextField> {
     let label = NSTextField::labelWithString(&NSString::from_str(text), mtm);
     label.setSelectable(false);
-    label.setPreferredMaxLayoutWidth(320.0);
+    label.setPreferredMaxLayoutWidth(360.0);
+    label.setUsesSingleLineMode(false);
+    label.setMaximumNumberOfLines(0);
+    label.setLineBreakMode(NSLineBreakMode::ByWordWrapping);
+    label.setAlignment(objc2_app_kit::NSTextAlignment::Center);
     label
 }
 
