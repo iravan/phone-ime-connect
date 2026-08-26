@@ -102,6 +102,26 @@
   footer{text-align:center;color:var(--muted);margin:56px 0 40px;font-size:.9rem}
   hr{border:none;border-top:1px solid var(--border);margin:8px 0}
   [hidden]{display:none!important}
+
+  /* common fixes */
+  .reassure{background:linear-gradient(120deg,var(--panel),var(--panel2));
+    border:1px solid var(--border);border-left:4px solid var(--ok);
+    border-radius:14px;padding:14px 18px;margin:0 0 16px;box-shadow:var(--shadow)}
+  .fixes{display:grid;gap:12px}
+  .fix{background:var(--panel);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+  .fix>summary{cursor:pointer;list-style:none;padding:15px 18px;font-weight:650;
+    display:flex;align-items:center;gap:10px}
+  .fix>summary::-webkit-details-marker{display:none}
+  .fix>summary::after{content:"+";margin-left:auto;color:var(--muted);font-weight:700;font-size:1.2rem}
+  .fix[open]>summary::after{content:"\2212"}
+  .fix>summary:hover{color:var(--accent)}
+  .fix .body{padding:0 18px 16px}
+  .fix .why{color:var(--muted);margin:.1em 0 .7em}
+  .fix ol{margin:.3em 0;padding-left:1.3em}
+  .fix li{margin:.4em 0}
+  .fix .tip{color:var(--muted);font-size:.92rem;margin:.7em 0 0}
+  .fix code{background:var(--code);padding:.12em .45em;border-radius:6px;
+    font-size:.88em;word-break:break-all}
 </style>
 </head>
 <body>
@@ -240,13 +260,14 @@
   <section>
     <h2 data-i18n="fixTitle"></h2>
     <p class="sub" data-i18n="fixIntro"></p>
-    <div class="grid">
-      <div class="card" data-i18n="fix1"></div>
-      <div class="card" data-i18n="fix2"></div>
-      <div class="card" data-i18n="fix3"></div>
-      <div class="card" data-i18n="fix4"></div>
-      <div class="card" data-i18n="fix5"></div>
-      <div class="card" data-i18n="fix6"></div>
+    <div class="reassure" data-i18n="fixReassure"></div>
+    <div class="fixes">
+      <details class="fix" data-i18n="fix1"></details>
+      <details class="fix" data-i18n="fix2"></details>
+      <details class="fix" data-i18n="fix3"></details>
+      <details class="fix" data-i18n="fix4"></details>
+      <details class="fix" data-i18n="fix5"></details>
+      <details class="fix" data-i18n="fix6"></details>
     </div>
     <p class="note" data-i18n="fixMore"></p>
   </section>
@@ -299,14 +320,15 @@ const I18N = {
     beyondTitle:"Beyond the desktop",
     beyond:"<strong>Any device that is a display plus a cursor — but no real keyboard — has the same text‑input problem</strong>, and the same phone‑relay solves it: game consoles (search, passwords, messages), <strong>karaoke machines</strong> (song search, brutal for CJK titles — a phone brings full IME, handwriting, and “just say the song name” voice search), smart TVs, kiosks, VR headsets, car infotainment. Cheap to build, cross‑vendor, zero install. <strong>Stop making on‑screen keyboards less bad — let the phone be the keyboard.</strong><br><br>And it <strong>deploys at scale</strong> — from one desktop to public kiosks, arcade rows, karaoke booths, digital signage, or fleet‑wide shared terminals. <em>Scope: this repository implements only the desktop tool; the consoles, karaoke, kiosks, and larger deployments above are the concept — not included here.</em>",
     readme:"Full setup, troubleshooting, and security details are in the <a href='https://github.com/iravan/phone-ime-connect#readme'>README →</a>",
-    fixTitle:"Common problems & fixes", fixIntro:"The blockers almost every first-time user hits — each is normal and has a quick fix.",
-    fix1:"🪟 <strong>Windows: “Windows protected your PC.”</strong> SmartScreen warns about any new unsigned download. <strong>Fix:</strong> click <strong>More info</strong> → <strong>Run anyway</strong> (or right-click the file → <strong>Properties</strong> → tick <strong>Unblock</strong>).",
-    fix2:"🍎 <strong>macOS: won't open — “Apple could not verify…” or “app is damaged.”</strong> Releases are ad-hoc signed, not notarized. <strong>Fix:</strong> move it to Applications, then in Terminal run <code>xattr -cr /Applications/PhoneInputConnect.app</code> and <code>codesign --force --deep --sign - /Applications/PhoneInputConnect.app</code> (once). Or: <strong>System Settings → Privacy &amp; Security → Open Anyway</strong>.",
-    fix3:"⌨️ <strong>macOS: messages arrive but nothing is typed.</strong> Typing into other apps needs Accessibility permission. <strong>Fix:</strong> approve the prompt on first launch, or enable it under <strong>System Settings → Privacy &amp; Security → Accessibility</strong>.",
-    fix4:"🔒 <strong>Phone: “Your connection is not private.”</strong> The link uses a self-signed certificate — safe on your own network. <strong>Fix:</strong> tap <strong>Advanced</strong> (or <strong>Show details</strong>) → <strong>Proceed / Continue</strong>. Once per phone.",
-    fix5:"📶 <strong>Phone can't open the page at all.</strong> The phone and computer aren't on the same network, or the guessed address is wrong. <strong>Fix:</strong> join the <strong>same Wi-Fi</strong> (not guest, not mobile data); if it still fails, set <code>PHONE_INPUT_CONNECT_LAN_IP</code> to your computer's Wi-Fi IPv4 before launching.",
-    fix6:"🐧 <strong>Linux/Wayland: typing silently does nothing.</strong> Many Wayland desktops block simulated keystrokes. <strong>Fix:</strong> the text is already on your clipboard — just press <strong>Ctrl+V</strong> yourself in the target window.",
-    fixMore:"Screenshots and full steps for each are in the <a href='https://github.com/iravan/phone-ime-connect#common-problems--fixes'>README →</a>"
+    fixTitle:"Common problems & fixes", fixIntro:"Almost everyone runs into one or two of these the first time. Tap any item to see exactly what to do.",
+    fixReassure:"✅ <strong>These warnings are normal — nothing is wrong and nothing is unsafe.</strong> Your computer is just being cautious about a brand-new app it hasn't seen before. Each fix takes a few seconds, and you only do it once.",
+    fix1:"<summary>🪟 Windows: “Windows protected your PC”</summary><div class='body'><p class='why'>This blue box appears for almost every new program that isn't from a big paid publisher. It doesn't mean the app is harmful — Windows simply hasn't seen it downloaded many times yet.</p><ol><li>Click <strong>More info</strong> in the dialog.</li><li>Click the <strong>Run anyway</strong> button that appears.</li></ol><p class='tip'>Prefer not to click through? Right-click the downloaded file → <strong>Properties</strong> → tick <strong>Unblock</strong> → <strong>OK</strong>, then open it normally.</p></div>",
+    fix2:"<summary>🍎 macOS: won't open — “Apple could not verify…” or “app is damaged”</summary><div class='body'><p class='why'>Apple charges a yearly fee to “notarize” apps and this project doesn't pay it yet, so macOS is extra cautious. The app is fine — the “damaged” message is misleading. This is a one-time step.</p><ol><li>Drag <strong>PhoneInputConnect</strong> into your <strong>Applications</strong> folder.</li><li>Open <strong>Terminal</strong> and paste these two lines, one at a time:<br><code>xattr -cr /Applications/PhoneInputConnect.app</code><br><code>codesign --force --deep --sign - /Applications/PhoneInputConnect.app</code></li><li>Open the app normally — you won't need to do this again.</li></ol><p class='tip'>The first line removes the “downloaded from the internet” flag; the second re-seals the app for your own Mac. No Terminal? On macOS 14 or earlier, right-click the app → <strong>Open</strong> → <strong>Open</strong>. On macOS 15 Sequoia, double-click once, then <strong>System Settings → Privacy &amp; Security</strong> → scroll down → <strong>Open Anyway</strong>.</p></div>",
+    fix3:"<summary>⌨️ macOS: messages arrive but nothing gets typed</summary><div class='body'><p class='why'>To type into your other apps, macOS needs your permission once — the same permission password managers use. It's safe to grant.</p><ol><li>When the “PhoneInputConnect would like to control this computer” prompt appears, click <strong>Open System Settings</strong> — or open <strong>System Settings → Privacy &amp; Security → Accessibility</strong> yourself.</li><li>Turn on the switch next to <strong>PhoneInputConnect</strong>.</li><li>If it was already on, switch it off and on once, then send again.</li></ol></div>",
+    fix4:"<summary>🔒 Phone: “Your connection is not private”</summary><div class='body'><p class='why'>The connection <em>is</em> encrypted — your phone just can't verify the certificate because your computer made it itself instead of buying one. On your own Wi-Fi this is safe; it's the same warning many home routers and printers show.</p><ol><li>Tap <strong>Advanced</strong> (or <strong>Show details</strong>).</li><li>Tap <strong>Proceed</strong> / <strong>Continue</strong> to the site.</li></ol><p class='tip'>You'll only see this once per phone.</p></div>",
+    fix5:"<summary>📶 Phone can't open the page at all</summary><div class='body'><p class='why'>The QR scanned, but the page won't load. Almost always this means the phone and computer aren't on the same network.</p><ol><li>Put both devices on the <strong>same Wi-Fi</strong> — not a “Guest” network — and turn the phone's <strong>mobile data off</strong> so it doesn't bypass Wi-Fi.</li><li>Still failing? The app may have guessed the wrong network address. Find your computer's Wi-Fi IPv4 address (e.g. <code>192.168.1.42</code>) and launch with <code>PHONE_INPUT_CONNECT_LAN_IP=192.168.1.42</code>.</li></ol></div>",
+    fix6:"<summary>🐧 Linux/Wayland: typing silently does nothing</summary><div class='body'><p class='why'>Some Linux desktops (Wayland) don't let apps press keys for you, as a security measure. Nothing the app can change — but your text isn't lost.</p><ol><li>The message is already on your clipboard.</li><li>Click the target window and press <strong>Ctrl+V</strong> yourself.</li></ol><p class='tip'>If GNOME shows an “allow remote desktop interaction” prompt once, allow it and typing works automatically after that.</p></div>",
+    fixMore:"Prefer pictures? The <a href='https://github.com/iravan/phone-ime-connect#common-problems--fixes'>README →</a> has a screenshot for every step."
   },
   "zh-Hant":{
     tag:"用手機打字，直接輸入到電腦。",
@@ -345,14 +367,15 @@ const I18N = {
     beyondTitle:"不只桌面電腦",
     beyond:"<strong>任何「有螢幕、有游標、卻沒有好鍵盤」的裝置都有同樣的輸入難題</strong>，同一套手機接力都能解決：遊戲主機（搜尋、帳密、訊息）、<strong>卡拉OK 點歌機</strong>（點歌尤其痛苦，中日韓歌名用遙控器幾乎無解——手機帶來完整輸入法、手寫，甚至「用說的」點歌）、智慧電視、自助機台、VR、車載系統。實作便宜、跨品牌、免安裝。<strong>與其把螢幕鍵盤做得比較不爛，不如讓手機直接當鍵盤。</strong><br><br>而且它也能<strong>大規模部署</strong>：從單台電腦到公共自助機、卡拉OK 包廂、數位看板，甚至整個場館或車隊規模的共用終端。<em>範圍：本專案僅實作「桌面版」；上述遊戲主機、卡拉OK、自助機與更大規模的部署只是概念，並未包含在此。</em>",
     readme:"完整安裝、疑難排解與安全性說明請見 <a href='https://github.com/iravan/phone-ime-connect#readme'>README →</a>",
-    fixTitle:"常見問題與解決方法", fixIntro:"幾乎每位第一次使用的人都會遇到以下情況——都屬正常，也都有快速的解決方法。",
-    fix1:"🪟 <strong>Windows：「Windows 已保護您的電腦」。</strong>SmartScreen 會對任何新的、未簽署的下載程式提出警告。<strong>解決：</strong>按 <strong>更多資訊</strong> → <strong>仍要執行</strong>（或在檔案上按右鍵 → <strong>內容</strong> → 勾選 <strong>解除封鎖</strong>）。",
-    fix2:"🍎 <strong>macOS：無法開啟——「Apple 無法驗證…」或「App 已損毀」。</strong>目前的版本只做 ad-hoc 簽署、未經公證。<strong>解決：</strong>先把程式移到「應用程式」資料夾，再於終端機執行 <code>xattr -cr /Applications/PhoneInputConnect.app</code> 及 <code>codesign --force --deep --sign - /Applications/PhoneInputConnect.app</code>（只需一次）。或到 <strong>系統設定 → 私隱與安全性 → 仍要打開</strong>。",
-    fix3:"⌨️ <strong>macOS：訊息送到了，但沒有打出文字。</strong>把文字輸入到其他 App 需要「輔助使用」權限。<strong>解決：</strong>在首次啟動時允許該提示，或到 <strong>系統設定 → 私隱與安全性 → 輔助使用</strong> 開啟。",
-    fix4:"🔒 <strong>手機：「你的連線並不安全」。</strong>連線用的是自簽憑證——在自己的網絡上是安全的。<strong>解決：</strong>按 <strong>進階</strong>（或 <strong>顯示詳細資料</strong>）→ <strong>繼續前往</strong>。每部手機只需做一次。",
-    fix5:"📶 <strong>手機完全打不開網頁。</strong>手機與電腦不在同一個網絡，或程式猜錯了位址。<strong>解決：</strong>連上 <strong>同一個 Wi-Fi</strong>（不要用訪客網絡或流動數據）；若仍失敗，啟動前把 <code>PHONE_INPUT_CONNECT_LAN_IP</code> 設為電腦的 Wi-Fi IPv4 位址。",
-    fix6:"🐧 <strong>Linux／Wayland：打字沒有任何反應。</strong>不少 Wayland 桌面會封鎖模擬按鍵。<strong>解決：</strong>文字其實已在剪貼簿上——自己在目標視窗按 <strong>Ctrl+V</strong> 即可。",
-    fixMore:"每項的截圖與完整步驟請見 <a href='https://github.com/iravan/phone-ime-connect#common-problems--fixes'>README →</a>"
+    fixTitle:"常見問題與解決方法", fixIntro:"幾乎每個人第一次用都會遇到一兩項。點一下任何一項，就會看到清楚的步驟。",
+    fixReassure:"✅ <strong>這些警告都很正常——沒有出錯，也不代表有危險。</strong>只是電腦第一次見到這個全新程式，格外謹慎而已。每個處理都只需幾秒，而且一次搞定，之後不會再出現。",
+    fix1:"<summary>🪟 Windows：「Windows 已保護您的電腦」</summary><div class='body'><p class='why'>幾乎所有不是大公司付費發行的新程式，都會跳出這個藍色視窗。這不代表程式有害——只是 Windows 還沒見過它被大量下載而已。</p><ol><li>在對話框按 <strong>更多資訊</strong>。</li><li>按接著出現的 <strong>仍要執行</strong>。</li></ol><p class='tip'>不想逐步點？在下載的檔案上按右鍵 → <strong>內容</strong> → 勾選 <strong>解除封鎖</strong> → <strong>確定</strong>，之後正常打開即可。</p></div>",
+    fix2:"<summary>🍎 macOS：無法開啟——「Apple 無法驗證…」或「App 已損毀」</summary><div class='body'><p class='why'>Apple 要收年費替 App「公證」，本專案暫時未付，所以 macOS 特別謹慎。程式本身沒問題——「已損毀」是誤導的訊息。這只需做一次。</p><ol><li>把 <strong>PhoneInputConnect</strong> 拖進 <strong>「應用程式」</strong> 資料夾。</li><li>打開 <strong>「終端機」</strong>，把以下兩行逐一貼上執行：<br><code>xattr -cr /Applications/PhoneInputConnect.app</code><br><code>codesign --force --deep --sign - /Applications/PhoneInputConnect.app</code></li><li>之後正常打開程式即可，不用再做一次。</li></ol><p class='tip'>第一行清除「從網際網路下載」的標記；第二行替你這部 Mac 重新簽署程式。不想用終端機？macOS 14 或更早：在程式上按右鍵 → <strong>打開</strong> → <strong>打開</strong>。macOS 15 Sequoia：先雙擊一次，再到 <strong>系統設定 → 私隱與安全性</strong> → 往下捲 → <strong>仍要打開</strong>。</p></div>",
+    fix3:"<summary>⌨️ macOS：訊息送到了，但沒有打出文字</summary><div class='body'><p class='why'>要把文字輸入到你的其他 App，macOS 需要你授權一次——就跟密碼管理程式用的權限一樣，可以放心開啟。</p><ol><li>當「PhoneInputConnect 想要控制這部電腦」的提示出現時，按 <strong>打開系統設定</strong>；或自己到 <strong>系統設定 → 私隱與安全性 → 輔助使用</strong>。</li><li>把 <strong>PhoneInputConnect</strong> 旁邊的開關打開。</li><li>如果本來就已開啟，把它關掉再開一次，然後再送一次訊息。</li></ol></div>",
+    fix4:"<summary>🔒 手機：「你的連線並不安全」</summary><div class='body'><p class='why'>連線<em>其實</em>已加密——只是憑證是電腦自己簽發、而非向外購買，所以手機無法核實。在自己的 Wi-Fi 上是安全的；很多家用路由器和打印機也會顯示同樣的警告。</p><ol><li>按 <strong>進階</strong>（或 <strong>顯示詳細資料</strong>）。</li><li>按 <strong>繼續前往</strong> 該網站。</li></ol><p class='tip'>每部手機只會出現一次。</p></div>",
+    fix5:"<summary>📶 手機完全打不開網頁</summary><div class='body'><p class='why'>QR 掃到了，網頁卻載入不了。幾乎都是因為手機和電腦不在同一個網絡。</p><ol><li>把兩部裝置連到 <strong>同一個 Wi-Fi</strong>——不要用「訪客」網絡——並把手機的 <strong>流動數據關掉</strong>，以免繞過 Wi-Fi。</li><li>還是不行？程式可能猜錯了網絡位址。找出電腦的 Wi-Fi IPv4 位址（例如 <code>192.168.1.42</code>），啟動時加上 <code>PHONE_INPUT_CONNECT_LAN_IP=192.168.1.42</code>。</li></ol></div>",
+    fix6:"<summary>🐧 Linux／Wayland：打字沒有任何反應</summary><div class='body'><p class='why'>部分 Linux 桌面（Wayland）基於保安，不允許程式代你按鍵。這是程式無法改變的——但你的文字並沒有不見。</p><ol><li>訊息其實已經在剪貼簿上。</li><li>點一下目標視窗，自己按 <strong>Ctrl+V</strong>。</li></ol><p class='tip'>若 GNOME 曾跳出一次「允許遠端桌面互動」的提示，允許它，之後就會自動輸入。</p></div>",
+    fixMore:"想看圖？<a href='https://github.com/iravan/phone-ime-connect#common-problems--fixes'>README →</a> 每個步驟都附有截圖。"
   },
   "zh-Hans":{
     tag:"用手机打字，直接输入到电脑。",
@@ -391,14 +414,15 @@ const I18N = {
     beyondTitle:"不只桌面电脑",
     beyond:"<strong>任何“有屏幕、有光标、却没有好键盘”的设备都有同样的输入难题</strong>，同一套手机接力都能解决：游戏主机（搜索、账号密码、消息）、<strong>卡拉OK 点歌机</strong>（点歌尤其痛苦，中日韩歌名用遥控器几乎无解——手机带来完整输入法、手写，甚至“用说的”点歌）、智能电视、自助机、VR、车载系统。实现便宜、跨品牌、免安装。<strong>与其把屏幕键盘做得没那么烂，不如让手机直接当键盘。</strong><br><br>而且它也能<strong>大规模部署</strong>：从单台电脑到公共自助机、卡拉OK 包厢、数字看板，甚至整个场馆或车队规模的共用终端。<em>范围：本项目仅实现“桌面版”；上述游戏主机、卡拉OK、自助机与更大规模的部署只是概念，并未包含在此。</em>",
     readme:"完整安装、疑难排解与安全性说明请见 <a href='https://github.com/iravan/phone-ime-connect#readme'>README →</a>",
-    fixTitle:"常见问题与解决方法", fixIntro:"几乎每位第一次使用的人都会遇到以下情况——都属正常，也都有快速的解决方法。",
-    fix1:"🪟 <strong>Windows：“Windows 已保护你的电脑”。</strong>SmartScreen 会对任何新的、未签名的下载程序提出警告。<strong>解决：</strong>点 <strong>更多信息</strong> → <strong>仍要运行</strong>（或右键点文件 → <strong>属性</strong> → 勾选 <strong>解除锁定</strong>）。",
-    fix2:"🍎 <strong>macOS：无法打开——“Apple 无法验证…”或“App 已损坏”。</strong>目前的版本只做 ad-hoc 签名、未经公证。<strong>解决：</strong>先把程序移到“应用程序”文件夹，再在终端执行 <code>xattr -cr /Applications/PhoneInputConnect.app</code> 及 <code>codesign --force --deep --sign - /Applications/PhoneInputConnect.app</code>（只需一次）。或到 <strong>系统设置 → 隐私与安全性 → 仍要打开</strong>。",
-    fix3:"⌨️ <strong>macOS：消息送到了，但没有打出文字。</strong>把文字输入到其他 App 需要“辅助功能”权限。<strong>解决：</strong>在首次启动时允许该提示，或到 <strong>系统设置 → 隐私与安全性 → 辅助功能</strong> 开启。",
-    fix4:"🔒 <strong>手机：“你的连接不是私密连接”。</strong>连接用的是自签证书——在自己的网络上是安全的。<strong>解决：</strong>点 <strong>高级</strong>（或 <strong>显示详情</strong>）→ <strong>继续前往</strong>。每部手机只需做一次。",
-    fix5:"📶 <strong>手机完全打不开网页。</strong>手机与电脑不在同一个网络，或程序猜错了地址。<strong>解决：</strong>连上 <strong>同一个 Wi-Fi</strong>（不要用访客网络或移动数据）；若仍失败，启动前把 <code>PHONE_INPUT_CONNECT_LAN_IP</code> 设为电脑的 Wi-Fi IPv4 地址。",
-    fix6:"🐧 <strong>Linux／Wayland：打字没有任何反应。</strong>不少 Wayland 桌面会拦截模拟按键。<strong>解决：</strong>文字其实已在剪贴板上——自己在目标窗口按 <strong>Ctrl+V</strong> 即可。",
-    fixMore:"每项的截图与完整步骤请见 <a href='https://github.com/iravan/phone-ime-connect#common-problems--fixes'>README →</a>"
+    fixTitle:"常见问题与解决方法", fixIntro:"几乎每个人第一次用都会遇到一两项。点一下任何一项，就会看到清楚的步骤。",
+    fixReassure:"✅ <strong>这些警告都很正常——没有出错，也不代表有危险。</strong>只是电脑第一次见到这个全新程序，格外谨慎而已。每个处理都只需几秒，而且一次搞定，之后不会再出现。",
+    fix1:"<summary>🪟 Windows：“Windows 已保护你的电脑”</summary><div class='body'><p class='why'>几乎所有不是大公司付费发行的新程序，都会弹出这个蓝色窗口。这不代表程序有害——只是 Windows 还没见过它被大量下载而已。</p><ol><li>在对话框点 <strong>更多信息</strong>。</li><li>点接着出现的 <strong>仍要运行</strong>。</li></ol><p class='tip'>不想逐步点？在下载的文件上右键 → <strong>属性</strong> → 勾选 <strong>解除锁定</strong> → <strong>确定</strong>，之后正常打开即可。</p></div>",
+    fix2:"<summary>🍎 macOS：无法打开——“Apple 无法验证…”或“App 已损坏”</summary><div class='body'><p class='why'>Apple 要收年费替 App“公证”，本项目暂时未付，所以 macOS 特别谨慎。程序本身没问题——“已损坏”是误导的提示。这只需做一次。</p><ol><li>把 <strong>PhoneInputConnect</strong> 拖进 <strong>“应用程序”</strong> 文件夹。</li><li>打开 <strong>“终端”</strong>，把以下两行逐一粘贴执行：<br><code>xattr -cr /Applications/PhoneInputConnect.app</code><br><code>codesign --force --deep --sign - /Applications/PhoneInputConnect.app</code></li><li>之后正常打开程序即可，不用再做一次。</li></ol><p class='tip'>第一行清除“从互联网下载”的标记；第二行替你这台 Mac 重新签名程序。不想用终端？macOS 14 或更早：在程序上右键 → <strong>打开</strong> → <strong>打开</strong>。macOS 15 Sequoia：先双击一次，再到 <strong>系统设置 → 隐私与安全性</strong> → 往下滚 → <strong>仍要打开</strong>。</p></div>",
+    fix3:"<summary>⌨️ macOS：消息送到了，但没有打出文字</summary><div class='body'><p class='why'>要把文字输入到你的其他 App，macOS 需要你授权一次——就跟密码管理器用的权限一样，可以放心开启。</p><ol><li>当“PhoneInputConnect 想要控制这台电脑”的提示出现时，点 <strong>打开系统设置</strong>；或自己到 <strong>系统设置 → 隐私与安全性 → 辅助功能</strong>。</li><li>把 <strong>PhoneInputConnect</strong> 旁边的开关打开。</li><li>如果本来就已开启，把它关掉再开一次，然后再发一次消息。</li></ol></div>",
+    fix4:"<summary>🔒 手机：“你的连接不是私密连接”</summary><div class='body'><p class='why'>连接<em>其实</em>已加密——只是证书是电脑自己签发、而非对外购买，所以手机无法核实。在自己的 Wi-Fi 上是安全的；很多家用路由器和打印机也会显示同样的警告。</p><ol><li>点 <strong>高级</strong>（或 <strong>显示详情</strong>）。</li><li>点 <strong>继续前往</strong> 该网站。</li></ol><p class='tip'>每部手机只会出现一次。</p></div>",
+    fix5:"<summary>📶 手机完全打不开网页</summary><div class='body'><p class='why'>二维码扫到了，网页却加载不出来。几乎都是因为手机和电脑不在同一个网络。</p><ol><li>把两台设备连到 <strong>同一个 Wi-Fi</strong>——不要用“访客”网络——并把手机的 <strong>移动数据关掉</strong>，以免绕过 Wi-Fi。</li><li>还是不行？程序可能猜错了网络地址。找出电脑的 Wi-Fi IPv4 地址（例如 <code>192.168.1.42</code>），启动时加上 <code>PHONE_INPUT_CONNECT_LAN_IP=192.168.1.42</code>。</li></ol></div>",
+    fix6:"<summary>🐧 Linux／Wayland：打字没有任何反应</summary><div class='body'><p class='why'>部分 Linux 桌面（Wayland）出于安全，不允许程序代你按键。这是程序无法改变的——但你的文字并没有丢失。</p><ol><li>消息其实已经在剪贴板上。</li><li>点一下目标窗口，自己按 <strong>Ctrl+V</strong>。</li></ol><p class='tip'>若 GNOME 曾弹出一次“允许远程桌面交互”的提示，允许它，之后就会自动输入。</p></div>",
+    fixMore:"想看图？<a href='https://github.com/iravan/phone-ime-connect#common-problems--fixes'>README →</a> 每个步骤都附有截图。"
   },
   "ja":{
     tag:"スマホで入力し、そのまま PC へ。",
@@ -437,14 +461,15 @@ const I18N = {
     beyondTitle:"デスクトップだけではありません",
     beyond:"<strong>画面とカーソルはあるが、まともなキーボードがない機器</strong>はどれも同じ入力問題を抱えます：ゲーム機（検索・パスワード・メッセージ）、<strong>カラオケ</strong>（曲名検索、とくに日中韓の曲名はリモコンではほぼ不可能——スマホなら完全な入力・手書き・「声で曲名」検索まで）、スマート TV、キオスク、VR、車載。実装は安価・機種横断・インストール不要。<strong>画面キーボードを少しマシにするより、スマホをキーボードにしましょう。</strong><br><br>しかも<strong>大規模展開</strong>も可能です：1 台の PC から、公共キオスク、アーケード筐体、カラオケの各ブース、デジタルサイネージ、施設・車両群規模の共用端末まで。<em>スコープ：本リポジトリはデスクトップ版のみを実装。上記のゲーム機・カラオケ・キオスク・大規模展開は概念であり、ここには含まれません。</em>",
     readme:"詳しいセットアップ・トラブル対処・セキュリティは <a href='https://github.com/iravan/phone-ime-connect#readme'>README →</a>",
-    fixTitle:"よくある問題と対処", fixIntro:"初回利用でほぼ誰もが出会う引っかかりです——どれも正常で、すぐ直せます。",
-    fix1:"🪟 <strong>Windows：「WindowsによってPCが保護されました」。</strong>SmartScreen は新しい未署名のダウンロード全般に警告します。<strong>対処：</strong><strong>詳細情報</strong> →  <strong>実行</strong>（またはファイルを右クリック → <strong>プロパティ</strong> → <strong>ブロックの解除</strong>にチェック）。",
-    fix2:"🍎 <strong>macOS：開けない——「Appleは確認できません…」または「アプリは壊れています」。</strong>配布ビルドはアドホック署名で公証なし。<strong>対処：</strong>アプリを「アプリケーション」に移し、ターミナルで <code>xattr -cr /Applications/PhoneInputConnect.app</code> と <code>codesign --force --deep --sign - /Applications/PhoneInputConnect.app</code> を実行（一度だけ）。または <strong>システム設定 → プライバシーとセキュリティ → このまま開く</strong>。",
-    fix3:"⌨️ <strong>macOS：メッセージは届くのに入力されない。</strong>他アプリへの入力には「アクセシビリティ」権限が必要です。<strong>対処：</strong>初回起動時の許可を承認するか、<strong>システム設定 → プライバシーとセキュリティ → アクセシビリティ</strong> で有効化。",
-    fix4:"🔒 <strong>スマホ：「この接続ではプライバシーが保護されません」。</strong>自己署名証明書を使っています——自分のネットワーク内なら安全です。<strong>対処：</strong><strong>詳細</strong>（または <strong>詳細を表示</strong>）→ <strong>アクセスする／続行</strong>。スマホごとに一度だけ。",
-    fix5:"📶 <strong>スマホでページが全く開かない。</strong>スマホと PC が同じネットワークにないか、推定アドレスが誤り。<strong>対処：</strong><strong>同じ Wi-Fi</strong> に接続（ゲスト用やモバイル通信は不可）。それでも駄目なら起動前に <code>PHONE_INPUT_CONNECT_LAN_IP</code> を PC の Wi-Fi の IPv4 アドレスに設定。",
-    fix6:"🐧 <strong>Linux／Wayland：入力しても何も起きない。</strong>多くの Wayland デスクトップは擬似キー入力をブロックします。<strong>対処：</strong>テキストはクリップボードに入っています——対象ウィンドウで自分で <strong>Ctrl+V</strong> を押してください。",
-    fixMore:"各項目のスクリーンショットと詳しい手順は <a href='https://github.com/iravan/phone-ime-connect#common-problems--fixes'>README →</a>"
+    fixTitle:"よくある問題と対処", fixIntro:"最初はほぼ誰もが1〜2個に出会います。項目をタップすると具体的な手順が開きます。",
+    fixReassure:"✅ <strong>これらの警告は正常です——不具合でも危険でもありません。</strong>PC が初めて見る新しいアプリに慎重になっているだけです。どれも数秒で済み、最初の一度だけです。",
+    fix1:"<summary>🪟 Windows：「WindowsによってPCが保護されました」</summary><div class='body'><p class='why'>大手の有料発行元でない新しいプログラムには、ほぼ必ずこの青い画面が出ます。アプリが有害という意味ではなく、Windows がまだ広く出回っていないと判断しているだけです。</p><ol><li>ダイアログの <strong>詳細情報</strong> をクリック。</li><li>現れた <strong>実行</strong> ボタンをクリック。</li></ol><p class='tip'>クリックしたくない場合：ダウンロードしたファイルを右クリック → <strong>プロパティ</strong> → <strong>ブロックの解除</strong> にチェック → <strong>OK</strong>。その後は普通に開けます。</p></div>",
+    fix2:"<summary>🍎 macOS：開けない——「Appleは確認できません…」または「アプリは壊れています」</summary><div class='body'><p class='why'>Apple はアプリの「公証」に年額費用を課しており、本プロジェクトはまだ支払っていないため macOS が慎重になります。アプリ自体は正常で、「壊れています」は誤解を招く表示です。作業は一度だけです。</p><ol><li><strong>PhoneInputConnect</strong> を <strong>「アプリケーション」</strong> フォルダに移動。</li><li><strong>「ターミナル」</strong> を開き、次の2行を1行ずつ貼り付けて実行：<br><code>xattr -cr /Applications/PhoneInputConnect.app</code><br><code>codesign --force --deep --sign - /Applications/PhoneInputConnect.app</code></li><li>あとは普通に開けます。二度目は不要です。</li></ol><p class='tip'>1行目は「インターネットからダウンロード」の印を消し、2行目はあなたの Mac 用にアプリを署名し直します。ターミナルを使わない場合：macOS 14 以前ならアプリを右クリック → <strong>開く</strong> → <strong>開く</strong>。macOS 15 Sequoia なら一度ダブルクリックし、<strong>システム設定 → プライバシーとセキュリティ</strong> → 下へスクロール → <strong>このまま開く</strong>。</p></div>",
+    fix3:"<summary>⌨️ macOS：メッセージは届くのに入力されない</summary><div class='body'><p class='why'>他のアプリへ入力するには、macOS の許可が一度だけ必要です——パスワード管理アプリが使うのと同じ権限で、安全に許可できます。</p><ol><li>「PhoneInputConnect がこのコンピュータの制御を求めています」の表示が出たら <strong>システム設定を開く</strong> をクリック。または自分で <strong>システム設定 → プライバシーとセキュリティ → アクセシビリティ</strong> を開く。</li><li><strong>PhoneInputConnect</strong> のスイッチをオンに。</li><li>すでにオンなら、一度オフにして再度オンにし、もう一度送信。</li></ol></div>",
+    fix4:"<summary>🔒 スマホ：「この接続ではプライバシーが保護されません」</summary><div class='body'><p class='why'>通信は<em>暗号化されています</em>——証明書を購入せず PC が自分で作ったため、スマホが確認できないだけです。自分の Wi-Fi 内なら安全で、家庭用ルーターやプリンターでも同じ警告が出ます。</p><ol><li><strong>詳細設定</strong>（または <strong>詳細を表示</strong>）をタップ。</li><li><strong>アクセスする</strong> / <strong>続行</strong> をタップ。</li></ol><p class='tip'>スマホごとに一度だけです。</p></div>",
+    fix5:"<summary>📶 スマホでページが全く開かない</summary><div class='body'><p class='why'>QR は読めたのにページが開かない。ほとんどの場合、スマホと PC が同じネットワークにありません。</p><ol><li>両方を <strong>同じ Wi-Fi</strong> に——「ゲスト」ネットワークは不可——スマホの <strong>モバイル通信をオフ</strong> にして Wi-Fi を迂回させない。</li><li>まだ駄目？アドレスの推定を誤った可能性。PC の Wi-Fi の IPv4 アドレス（例：<code>192.168.1.42</code>）を調べ、起動時に <code>PHONE_INPUT_CONNECT_LAN_IP=192.168.1.42</code> を指定。</li></ol></div>",
+    fix6:"<summary>🐧 Linux／Wayland：入力しても何も起きない</summary><div class='body'><p class='why'>一部の Linux デスクトップ（Wayland）は、セキュリティ上アプリによる擬似キー入力を許しません。アプリ側では変えられませんが、文字は失われていません。</p><ol><li>メッセージはすでにクリップボードにあります。</li><li>対象ウィンドウをクリックし、自分で <strong>Ctrl+V</strong> を押します。</li></ol><p class='tip'>GNOME で一度「リモートデスクトップ操作を許可」の確認が出たら許可すると、以降は自動で入力されます。</p></div>",
+    fixMore:"画像で見たい方は <a href='https://github.com/iravan/phone-ime-connect#common-problems--fixes'>README →</a> に各手順のスクリーンショットがあります。"
   },
   "ko":{
     tag:"휴대폰으로 입력해 PC에 그대로.",
@@ -483,14 +508,15 @@ const I18N = {
     beyondTitle:"데스크톱만이 아닙니다",
     beyond:"<strong>화면과 커서는 있지만 제대로 된 키보드가 없는 기기</strong>는 모두 같은 입력 문제를 겪습니다: 게임 콘솔(검색·비밀번호·메시지), <strong>노래방 기기</strong>(곡 검색, 특히 중·일·한 곡명은 리모컨으로 사실상 불가능——휴대폰이면 완전한 입력·손글씨·“음성으로 곡명” 검색까지), 스마트 TV, 키오스크, VR, 차량 인포테인먼트. 구현이 저렴하고 기기 무관하며 설치가 필요 없습니다. <strong>화면 키보드를 덜 나쁘게 만들기보다, 휴대폰을 키보드로 삼으세요.</strong><br><br>게다가 <strong>대규모로 배포</strong>할 수도 있습니다: PC 한 대에서 공공 키오스크, 아케이드 기기, 노래방 각 룸, 디지털 사이니지, 시설·차량군 규모의 공용 단말까지. <em>범위: 이 저장소는 데스크톱 버전만 구현합니다. 위의 게임 콘솔·노래방·키오스크·대규모 배포는 개념이며 여기 포함되지 않습니다.</em>",
     readme:"자세한 설치·문제 해결·보안 내용은 <a href='https://github.com/iravan/phone-ime-connect#readme'>README →</a>",
-    fixTitle:"자주 겪는 문제와 해결", fixIntro:"처음 쓰는 사람 대부분이 만나는 걸림돌입니다 — 모두 정상이며 간단히 해결됩니다.",
-    fix1:"🪟 <strong>Windows: “Windows에서 PC를 보호했습니다”.</strong> SmartScreen은 새로 내려받은 서명되지 않은 프로그램 전반에 경고합니다. <strong>해결:</strong> <strong>추가 정보</strong> → <strong>실행</strong>(또는 파일 우클릭 → <strong>속성</strong> → <strong>차단 해제</strong> 체크).",
-    fix2:"🍎 <strong>macOS: 열리지 않음 — “Apple에서 확인할 수 없음…” 또는 “앱이 손상됨”.</strong> 배포 빌드는 애드혹 서명이며 공증되지 않았습니다. <strong>해결:</strong> 앱을 응용 프로그램 폴더로 옮긴 뒤 터미널에서 <code>xattr -cr /Applications/PhoneInputConnect.app</code> 와 <code>codesign --force --deep --sign - /Applications/PhoneInputConnect.app</code> 실행(한 번만). 또는 <strong>시스템 설정 → 개인정보 보호 및 보안 → 그래도 열기</strong>.",
-    fix3:"⌨️ <strong>macOS: 메시지는 오는데 입력되지 않음.</strong> 다른 앱에 입력하려면 손쉬운 사용 권한이 필요합니다. <strong>해결:</strong> 첫 실행 시 프롬프트를 허용하거나 <strong>시스템 설정 → 개인정보 보호 및 보안 → 손쉬운 사용</strong> 에서 켜세요.",
-    fix4:"🔒 <strong>휴대폰: “연결이 비공개로 설정되어 있지 않습니다”.</strong> 자체 서명 인증서를 사용합니다 — 내 네트워크에서는 안전합니다. <strong>해결:</strong> <strong>고급</strong>(또는 <strong>세부정보 표시</strong>) → <strong>계속/이동</strong>. 휴대폰마다 한 번만.",
-    fix5:"📶 <strong>휴대폰에서 페이지가 아예 안 열림.</strong> 휴대폰과 컴퓨터가 같은 네트워크가 아니거나 주소를 잘못 추정한 경우. <strong>해결:</strong> <strong>같은 Wi-Fi</strong> 에 연결(게스트망·모바일 데이터 불가). 그래도 안 되면 실행 전 <code>PHONE_INPUT_CONNECT_LAN_IP</code> 를 컴퓨터의 Wi-Fi IPv4 주소로 설정하세요.",
-    fix6:"🐧 <strong>Linux／Wayland: 입력해도 아무 일이 없음.</strong> 많은 Wayland 데스크톱이 가상 키 입력을 차단합니다. <strong>해결:</strong> 텍스트는 이미 클립보드에 있습니다 — 대상 창에서 직접 <strong>Ctrl+V</strong> 를 누르세요.",
-    fixMore:"각 항목의 스크린샷과 자세한 절차는 <a href='https://github.com/iravan/phone-ime-connect#common-problems--fixes'>README →</a>"
+    fixTitle:"자주 겪는 문제와 해결", fixIntro:"처음엔 거의 누구나 한두 개를 만납니다. 항목을 누르면 정확한 순서가 열립니다.",
+    fixReassure:"✅ <strong>이 경고들은 정상입니다 — 문제가 있거나 위험한 게 아닙니다.</strong> 컴퓨터가 처음 보는 새 앱이라 조심하는 것뿐입니다. 각 해결은 몇 초면 되고, 처음 한 번만 하면 됩니다.",
+    fix1:"<summary>🪟 Windows: “Windows에서 PC를 보호했습니다”</summary><div class='body'><p class='why'>대형 유료 배포사가 아닌 새 프로그램은 거의 모두 이 파란 창이 뜹니다. 앱이 해롭다는 뜻이 아니라, Windows가 아직 많이 내려받아진 걸 못 봤을 뿐입니다.</p><ol><li>대화상자에서 <strong>추가 정보</strong>를 클릭.</li><li>나타나는 <strong>실행</strong> 버튼을 클릭.</li></ol><p class='tip'>일일이 누르기 싫다면: 내려받은 파일 우클릭 → <strong>속성</strong> → <strong>차단 해제</strong> 체크 → <strong>확인</strong> 후 평소처럼 열면 됩니다.</p></div>",
+    fix2:"<summary>🍎 macOS: 열리지 않음 — “Apple에서 확인할 수 없음…” 또는 “앱이 손상됨”</summary><div class='body'><p class='why'>Apple은 앱 “공증”에 연회비를 받는데 이 프로젝트는 아직 내지 않아 macOS가 더 조심합니다. 앱은 멀쩡하며 “손상됨”은 오해를 주는 문구입니다. 한 번만 하면 됩니다.</p><ol><li><strong>PhoneInputConnect</strong>를 <strong>응용 프로그램</strong> 폴더로 옮깁니다.</li><li><strong>터미널</strong>을 열고 아래 두 줄을 한 줄씩 붙여 실행:<br><code>xattr -cr /Applications/PhoneInputConnect.app</code><br><code>codesign --force --deep --sign - /Applications/PhoneInputConnect.app</code></li><li>이제 평소처럼 열면 됩니다. 다시 할 필요 없습니다.</li></ol><p class='tip'>첫 줄은 “인터넷에서 다운로드” 표시를 지우고, 둘째 줄은 이 Mac용으로 앱을 다시 서명합니다. 터미널이 싫다면: macOS 14 이하는 앱 우클릭 → <strong>열기</strong> → <strong>열기</strong>. macOS 15 Sequoia는 한 번 더블클릭한 뒤 <strong>시스템 설정 → 개인정보 보호 및 보안</strong> → 아래로 스크롤 → <strong>그래도 열기</strong>.</p></div>",
+    fix3:"<summary>⌨️ macOS: 메시지는 오는데 입력되지 않음</summary><div class='body'><p class='why'>다른 앱에 입력하려면 macOS 권한이 한 번 필요합니다 — 비밀번호 관리자가 쓰는 것과 같은 권한이라 안심하고 허용해도 됩니다.</p><ol><li>“PhoneInputConnect이(가) 이 컴퓨터를 제어하려고 합니다” 안내가 뜨면 <strong>시스템 설정 열기</strong>를 클릭. 또는 직접 <strong>시스템 설정 → 개인정보 보호 및 보안 → 손쉬운 사용</strong>으로 이동.</li><li><strong>PhoneInputConnect</strong> 옆 스위치를 켭니다.</li><li>이미 켜져 있었다면, 한 번 껐다 켠 뒤 다시 보내 보세요.</li></ol></div>",
+    fix4:"<summary>🔒 휴대폰: “연결이 비공개로 설정되어 있지 않습니다”</summary><div class='body'><p class='why'>연결은 <em>암호화되어 있습니다</em> — 인증서를 사서 쓰지 않고 컴퓨터가 직접 만든 것이라 휴대폰이 확인만 못 할 뿐입니다. 내 Wi-Fi에서는 안전하며, 가정용 공유기·프린터에서도 같은 경고가 뜹니다.</p><ol><li><strong>고급</strong>(또는 <strong>세부정보 표시</strong>)을 탭.</li><li>사이트로 <strong>계속</strong> / <strong>이동</strong>을 탭.</li></ol><p class='tip'>휴대폰마다 한 번만 나옵니다.</p></div>",
+    fix5:"<summary>📶 휴대폰에서 페이지가 아예 안 열림</summary><div class='body'><p class='why'>QR은 읽혔는데 페이지가 안 열립니다. 거의 항상 휴대폰과 컴퓨터가 같은 네트워크가 아니어서입니다.</p><ol><li>두 기기를 <strong>같은 Wi-Fi</strong>에 — “게스트” 네트워크는 안 됨 — 그리고 휴대폰 <strong>모바일 데이터를 끄기</strong>(Wi-Fi를 우회하지 않도록).</li><li>그래도 안 되면 주소를 잘못 추정했을 수 있습니다. 컴퓨터의 Wi-Fi IPv4 주소(예: <code>192.168.1.42</code>)를 찾아 실행 시 <code>PHONE_INPUT_CONNECT_LAN_IP=192.168.1.42</code>로 지정하세요.</li></ol></div>",
+    fix6:"<summary>🐧 Linux／Wayland: 입력해도 아무 일이 없음</summary><div class='body'><p class='why'>일부 Linux 데스크톱(Wayland)은 보안상 앱이 대신 키를 누르는 걸 막습니다. 앱이 바꿀 수 없는 부분이지만, 글자가 사라진 건 아닙니다.</p><ol><li>메시지는 이미 클립보드에 있습니다.</li><li>대상 창을 클릭하고 직접 <strong>Ctrl+V</strong>를 누르세요.</li></ol><p class='tip'>GNOME에서 “원격 데스크톱 상호작용 허용” 안내가 한 번 뜨면 허용하세요. 이후에는 자동으로 입력됩니다.</p></div>",
+    fixMore:"그림으로 보고 싶다면 <a href='https://github.com/iravan/phone-ime-connect#common-problems--fixes'>README →</a>에 단계별 스크린샷이 있습니다."
   }
 };
 
