@@ -1,8 +1,9 @@
-//! Tray icon integration for macOS, the one platform without a native
-//! window UI yet (see `window/mod.rs`'s module doc): `tray-icon` needs a
-//! real native GUI event loop pumping on the process's actual main
+//! macOS UI: a winit window plus a menu-bar tray icon (`tray-icon`), which
+//! needs a real native GUI event loop pumping on the process's actual main
 //! thread on macOS specifically, so the Tokio runtime running the
-//! pairing server instead runs on a background OS thread.
+//! pairing server instead runs on a background OS thread. (Linux/Windows
+//! have their own native windows and, on Windows, a native tray -- see
+//! `window/mod.rs`.)
 
 #[cfg(target_os = "macos")]
 pub mod native;

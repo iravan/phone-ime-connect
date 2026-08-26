@@ -34,6 +34,9 @@ pub struct Strings {
     pub history_header: &'static str,
     pub history_empty: &'static str,
     pub copy_to_clipboard_tooltip: &'static str,
+    pub menu_show: &'static str,
+    pub menu_launch_at_login: &'static str,
+    pub menu_quit: &'static str,
 }
 
 const EN: Strings = Strings {
@@ -54,6 +57,9 @@ const EN: Strings = Strings {
     history_header: "Received messages",
     history_empty: "No messages yet",
     copy_to_clipboard_tooltip: "Copy to clipboard",
+    menu_show: "Show PhoneInputConnect",
+    menu_launch_at_login: "Launch at login",
+    menu_quit: "Quit",
 };
 
 const ZH_HANT: Strings = Strings {
@@ -72,6 +78,9 @@ const ZH_HANT: Strings = Strings {
     history_header: "已接收的訊息",
     history_empty: "尚無訊息",
     copy_to_clipboard_tooltip: "複製到剪貼簿",
+    menu_show: "顯示 PhoneInputConnect",
+    menu_launch_at_login: "開機時啟動",
+    menu_quit: "結束",
 };
 
 /// The OS UI language can't change over the life of the process, and

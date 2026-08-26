@@ -4,8 +4,10 @@
 //! module-level note in `tray/mod.rs`). Linux and Windows have their own
 //! native windows instead (`window/`).
 //!
-//! There is no menu-bar icon: the window *is* the app, and closing it quits
-//! (matching the Linux/Windows windows). The dashboard is drawn with native
+//! A menu-bar tray icon (`tray-icon`/`muda`) sits alongside the window with
+//! a "Show", a checkable "Launch at login", and a "Quit" item; closing the
+//! window hides it to the tray and leaves the pairing server running, so the
+//! tray is the way back. The dashboard is drawn with native
 //! AppKit widgets (`appkit_dashboard.rs`). It takes no network connection --
 //! the same in-process snapshot stream the Linux window uses
 //! (`PairingServer::subscribe_dashboard`) is pushed straight into the
@@ -21,6 +23,8 @@
 use std::sync::Arc;
 
 use tokio::sync::broadcast::error::RecvError;
+use tray_icon::menu::{CheckMenuItem, Menu, MenuEvent, MenuId, MenuItem, PredefinedMenuItem};
+use tray_icon::{TrayIcon, TrayIconBuilder};
 use winit::application::ApplicationHandler;
 use winit::dpi::LogicalSize;
 use winit::event::WindowEvent;
@@ -44,6 +48,8 @@ enum UserEvent {
     /// keystroke, assert they run there -- calling the injector from the
     /// server's blocking thread instead aborts the process.
     Inject(InputEvent),
+    /// A menu-bar tray item was chosen (carries the item's id).
+    Menu(MenuId),
 }
 
 struct App {
@@ -54,6 +60,14 @@ struct App {
     // the event loop's first `resumed`.
     content: Option<Content>,
     window: Option<Window>,
+    // Menu-bar tray, built on the first `resumed` (it needs a running
+    // NSApplication). `tray` is only held to keep the icon alive; the
+    // `autostart` check item is kept to flip its checkmark; `show_id`/
+    // `quit_id` identify their menu items when a `Menu` event arrives.
+    tray: Option<TrayIcon>,
+    autostart: Option<CheckMenuItem>,
+    show_id: Option<MenuId>,
+    quit_id: Option<MenuId>,
 }
 
 impl ApplicationHandler<UserEvent> for App {
@@ -78,19 +92,31 @@ impl ApplicationHandler<UserEvent> for App {
 
             self.content = Some(content);
             self.window = Some(window);
+
+            // The menu-bar tray needs a live NSApplication, so it's built
+            // here (first `resumed`) rather than before the event loop, and
+            // only once. Menu clicks arrive as `UserEvent::Menu` via the
+            // handler installed in `run`.
+            self.build_tray();
         }
     }
 
     fn window_event(
         &mut self,
-        event_loop: &ActiveEventLoop,
+        _event_loop: &ActiveEventLoop,
         _window_id: WindowId,
         event: WindowEvent,
     ) {
         match event {
-            // No menu-bar icon to restore from, so closing quits the app
-            // entirely (same as the Linux/Windows windows).
-            WindowEvent::CloseRequested => event_loop.exit(),
+            // With a menu-bar tray to restore from, closing just hides the
+            // window and leaves the pairing server running -- reopen via the
+            // tray's "Show" item. "Quit" (also in the tray) is what actually
+            // exits.
+            WindowEvent::CloseRequested => {
+                if let Some(window) = &self.window {
+                    window.set_visible(false);
+                }
+            }
             // Returning to the window (e.g. after granting the permission in
             // System Settings) re-checks Accessibility so the notice clears.
             WindowEvent::Focused(true) => {
@@ -102,7 +128,7 @@ impl ApplicationHandler<UserEvent> for App {
         }
     }
 
-    fn user_event(&mut self, _event_loop: &ActiveEventLoop, event: UserEvent) {
+    fn user_event(&mut self, event_loop: &ActiveEventLoop, event: UserEvent) {
         match event {
             UserEvent::Snapshot(json) => {
                 if let Some(content) = &self.content {
@@ -111,8 +137,91 @@ impl ApplicationHandler<UserEvent> for App {
                 }
             }
             UserEvent::Inject(event) => self.injector.dispatch(event),
+            UserEvent::Menu(id) => {
+                if self.show_id.as_ref() == Some(&id) {
+                    self.show_window();
+                } else if self.quit_id.as_ref() == Some(&id) {
+                    event_loop.exit();
+                } else if let Some(item) = &self.autostart {
+                    if id == *item.id() {
+                        // `is_checked` already reflects the click; persist
+                        // that, then correct the checkmark to the state that
+                        // actually took effect (in case the write failed).
+                        let took = crate::autostart::set_enabled(item.is_checked());
+                        item.set_checked(took);
+                    }
+                }
+            }
         }
     }
+}
+
+impl App {
+    /// Builds the menu-bar tray icon and its menu. Called once on the first
+    /// `resumed`. Failures here are non-fatal: the window still works, just
+    /// without a tray, so they're logged rather than panicked on.
+    fn build_tray(&mut self) {
+        let s = crate::i18n::strings();
+
+        let icon = match tray_icon_image() {
+            Some(icon) => icon,
+            None => return,
+        };
+
+        let show = MenuItem::new(s.menu_show, true, None);
+        let autostart = CheckMenuItem::new(
+            s.menu_launch_at_login,
+            true,
+            crate::autostart::is_enabled(),
+            None,
+        );
+        let quit = MenuItem::new(s.menu_quit, true, None);
+
+        let menu = Menu::new();
+        if let Err(err) = menu.append_items(&[
+            &show,
+            &PredefinedMenuItem::separator(),
+            &autostart,
+            &PredefinedMenuItem::separator(),
+            &quit,
+        ]) {
+            log::warn!("failed to build the tray menu: {err}");
+            return;
+        }
+
+        match TrayIconBuilder::new()
+            .with_menu(Box::new(menu))
+            .with_tooltip("PhoneInputConnect")
+            .with_icon(icon)
+            .build()
+        {
+            Ok(tray) => {
+                self.show_id = Some(show.id().clone());
+                self.quit_id = Some(quit.id().clone());
+                self.autostart = Some(autostart);
+                self.tray = Some(tray);
+            }
+            Err(err) => log::warn!("failed to create the tray icon: {err}"),
+        }
+    }
+
+    /// Un-hides and re-focuses the window (from the tray's "Show" item).
+    fn show_window(&self) {
+        if let Some(window) = &self.window {
+            window.set_visible(true);
+            window.focus_window();
+        }
+    }
+}
+
+/// Decodes the bundled PNG app icon into a `tray-icon` RGBA icon. `None` on
+/// any decode failure (the tray is then skipped).
+fn tray_icon_image() -> Option<tray_icon::Icon> {
+    let img = image::load_from_memory(include_bytes!("../../assets/icon-256.png"))
+        .ok()?
+        .to_rgba8();
+    let (w, h) = (img.width(), img.height());
+    tray_icon::Icon::from_rgba(img.into_raw(), w, h).ok()
 }
 
 /// Whether this process currently has macOS Accessibility trust, without
@@ -219,6 +328,13 @@ pub fn run() {
     // the server invokes `on_message` from a blocking thread, but the
     // injector must run on this (main) thread, so the message is forwarded
     // there as a `UserEvent::Inject`.
+    // Route tray menu clicks onto the event loop as `UserEvent::Menu`, so
+    // they're handled on this (main) thread alongside everything else.
+    let menu_proxy = event_loop.create_proxy();
+    MenuEvent::set_event_handler(Some(move |event: MenuEvent| {
+        let _ = menu_proxy.send_event(UserEvent::Menu(event.id));
+    }));
+
     let injector = Arc::new(Injector::new().expect("failed to initialize keyboard input injector"));
     let inject_proxy = event_loop.create_proxy();
     let on_message: Arc<dyn Fn(InputEvent) + Send + Sync> = Arc::new(move |event: InputEvent| {
@@ -258,6 +374,10 @@ pub fn run() {
         injector,
         content: None,
         window: None,
+        tray: None,
+        autostart: None,
+        show_id: None,
+        quit_id: None,
     };
 
     event_loop

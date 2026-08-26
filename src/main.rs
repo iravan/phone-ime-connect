@@ -12,6 +12,8 @@
 // actually compiling for Windows.
 #![cfg_attr(windows, windows_subsystem = "windows")]
 
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+mod autostart;
 mod i18n;
 mod injector;
 mod instance;
