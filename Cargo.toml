@@ -32,6 +32,9 @@ gtk4 = { version = "0.11", features = ["v4_6"] }
 async-channel = "2"
 
 [target.'cfg(target_os = "windows")'.dependencies]
+# Launch-at-login toggle (tray menu): HKCU ...\Run registry value here,
+# a LaunchAgent plist on macOS. See `src/autostart.rs`.
+auto-launch = "0.6.0"
 # "image-decoder" is required for `Bitmap::builder().source_bin(...)` to
 # decode PNG bytes (what `qr::build_data_uri` produces) via WIC. Without
 # it, `bitmap_from_memory` assumes the bytes are already a raw Windows
@@ -58,6 +61,11 @@ objc2-app-kit = { version = "0.3", features = [
     "NSLayoutConstraint",
     "NSUserInterfaceLayout",
 ] }
+# Menu-bar tray icon + menu (`muda`), integrated with the winit event loop
+# via `MenuEvent::set_event_handler`. See `src/tray/native.rs`.
+tray-icon = "0.19"
+# See the Windows note above -- same launch-at-login crate, LaunchAgent mode.
+auto-launch = "0.6.0"
 
 [package.metadata.deb]
 maintainer = "PhoneInputConnect contributors"

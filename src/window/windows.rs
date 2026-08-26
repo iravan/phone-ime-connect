@@ -11,8 +11,11 @@
 //! box, with a single "Copy last message" button as the clipboard
 //! convenience.
 //!
-//! Closing this window quits the whole application, including the
-//! pairing server, same as on Linux.
+//! A notification-area (system tray) icon sits alongside the window with a
+//! "Show", a checkable "Launch at login", and a "Quit" item. Closing the
+//! window hides it to the tray and keeps the pairing server running (unlike
+//! Linux, where closing still quits); "Quit" in the tray menu is what
+//! actually exits.
 //!
 //! Unlike the Linux window (built and smoke-tested on a real machine),
 //! this module is unverified: written from `native-windows-gui`'s
@@ -58,6 +61,17 @@ struct App {
     history_box: nwg::TextBox,
     notice: nwg::Notice,
     layout: nwg::GridLayout,
+    // Menu-bar tray: a notification-area icon plus a popup menu with
+    // "Show", a checkable "Launch at login" toggle, and "Quit". Closing the
+    // window hides it here instead of quitting; the tray keeps the pairing
+    // server alive and is the way back to the window.
+    tray: nwg::TrayNotification,
+    tray_menu: nwg::Menu,
+    tray_show: nwg::MenuItem,
+    tray_sep1: nwg::MenuSeparator,
+    tray_autostart: nwg::MenuItem,
+    tray_sep2: nwg::MenuSeparator,
+    tray_quit: nwg::MenuItem,
     server: Arc<PairingServer>,
     // Written from the Tokio runtime's worker threads (see
     // `forward_updates`), read only from the UI thread in response to
@@ -122,6 +136,13 @@ pub fn run(runtime: Arc<tokio::runtime::Runtime>, server: Arc<PairingServer>) {
         history_box: Default::default(),
         notice: Default::default(),
         layout: Default::default(),
+        tray: Default::default(),
+        tray_menu: Default::default(),
+        tray_show: Default::default(),
+        tray_sep1: Default::default(),
+        tray_autostart: Default::default(),
+        tray_sep2: Default::default(),
+        tray_quit: Default::default(),
         server: server.clone(),
         latest_snapshot: Arc::new(Mutex::new(String::new())),
     };
@@ -201,6 +222,52 @@ pub fn run(runtime: Arc<tokio::runtime::Runtime>, server: Arc<PairingServer>) {
         .parent(&app.window)
         .build(&mut app.notice)
         .expect("failed to build the update notice");
+
+    // Tray icon plus its popup menu. The icon reuses the same app icon
+    // built above; the menu is parented to the window (a popup menu needs a
+    // window to route its command messages through) and shown on demand
+    // from the tray's click handlers below.
+    nwg::TrayNotification::builder()
+        .parent(&app.window)
+        .icon(Some(&app.icon))
+        .tip(Some("PhoneInputConnect"))
+        .build(&mut app.tray)
+        .expect("failed to build the tray icon");
+
+    nwg::Menu::builder()
+        .popup(true)
+        .parent(&app.window)
+        .build(&mut app.tray_menu)
+        .expect("failed to build the tray menu");
+
+    nwg::MenuItem::builder()
+        .text(s.menu_show)
+        .parent(&app.tray_menu)
+        .build(&mut app.tray_show)
+        .expect("failed to build the tray show item");
+
+    nwg::MenuSeparator::builder()
+        .parent(&app.tray_menu)
+        .build(&mut app.tray_sep1)
+        .expect("failed to build a tray menu separator");
+
+    nwg::MenuItem::builder()
+        .text(s.menu_launch_at_login)
+        .check(crate::autostart::is_enabled())
+        .parent(&app.tray_menu)
+        .build(&mut app.tray_autostart)
+        .expect("failed to build the tray launch-at-login item");
+
+    nwg::MenuSeparator::builder()
+        .parent(&app.tray_menu)
+        .build(&mut app.tray_sep2)
+        .expect("failed to build a tray menu separator");
+
+    nwg::MenuItem::builder()
+        .text(s.menu_quit)
+        .parent(&app.tray_menu)
+        .build(&mut app.tray_quit)
+        .expect("failed to build the tray quit item");
 
     nwg::GridLayout::builder()
         .parent(&app.window)
@@ -284,13 +351,45 @@ pub fn run(runtime: Arc<tokio::runtime::Runtime>, server: Arc<PairingServer>) {
 
     let weak_app = Rc::downgrade(&app);
     let handler =
-        nwg::full_bind_event_handler(&app.window.handle, move |evt, _evt_data, handle| {
+        nwg::full_bind_event_handler(&app.window.handle, move |evt, evt_data, handle| {
             let Some(app) = weak_app.upgrade() else {
                 return;
             };
             match evt {
+                // Closing the window hides it to the tray rather than
+                // quitting: cancel the actual close, then hide. "Quit" in
+                // the tray menu is what really exits.
                 nwg::Event::OnWindowClose => {
                     if &handle == &app.window {
+                        if let nwg::EventData::OnWindowClose(data) = evt_data {
+                            data.close(false);
+                        }
+                        app.window.set_visible(false);
+                    }
+                }
+                // Right-click the tray icon: pop up the menu at the cursor.
+                nwg::Event::OnContextMenu => {
+                    if &handle == &app.tray {
+                        let (x, y) = nwg::GlobalCursor::position();
+                        app.tray_menu.popup(x, y);
+                    }
+                }
+                // Left-click the tray icon: bring the window back.
+                nwg::Event::OnMousePress(nwg::MousePressEvent::MousePressLeftUp) => {
+                    if &handle == &app.tray {
+                        show_window(&app);
+                    }
+                }
+                nwg::Event::OnMenuItemSelected => {
+                    if &handle == &app.tray_show {
+                        show_window(&app);
+                    } else if &handle == &app.tray_autostart {
+                        // Flip to the opposite of the current checkmark,
+                        // then set the mark to the state that actually took
+                        // effect (so a failed write doesn't leave it lying).
+                        let took = crate::autostart::set_enabled(!app.tray_autostart.checked());
+                        app.tray_autostart.set_checked(took);
+                    } else if &handle == &app.tray_quit {
                         nwg::stop_thread_dispatch();
                     }
                 }
@@ -314,6 +413,15 @@ pub fn run(runtime: Arc<tokio::runtime::Runtime>, server: Arc<PairingServer>) {
 
     nwg::dispatch_thread_events();
     nwg::unbind_event_handler(&handler);
+}
+
+/// Un-hides and re-focuses the window (from the tray icon or its "Show"
+/// item). `restore` also un-minimizes it if it was minimized rather than
+/// hidden.
+fn show_window(app: &App) {
+    app.window.set_visible(true);
+    app.window.restore();
+    app.window.set_focus();
 }
 
 fn render_snapshot(app: &App) {
