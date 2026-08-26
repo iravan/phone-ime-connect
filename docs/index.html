@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -117,11 +117,11 @@
 </header>
 
 <div class="tabs" role="tablist" aria-label="Language">
-  <button class="tab" role="tab" data-lang="en">English</button>
   <button class="tab" role="tab" data-lang="zh-Hant">繁體中文</button>
   <button class="tab" role="tab" data-lang="zh-Hans">简体中文</button>
   <button class="tab" role="tab" data-lang="ja">日本語</button>
   <button class="tab" role="tab" data-lang="ko">한국어</button>
+  <button class="tab" role="tab" data-lang="en">English</button>
 </div>
 
 <div class="wrap">
@@ -236,6 +236,21 @@
     <p data-i18n="beyond"></p>
   </section>
 
+  <!-- COMMON FIXES -->
+  <section>
+    <h2 data-i18n="fixTitle"></h2>
+    <p class="sub" data-i18n="fixIntro"></p>
+    <div class="grid">
+      <div class="card" data-i18n="fix1"></div>
+      <div class="card" data-i18n="fix2"></div>
+      <div class="card" data-i18n="fix3"></div>
+      <div class="card" data-i18n="fix4"></div>
+      <div class="card" data-i18n="fix5"></div>
+      <div class="card" data-i18n="fix6"></div>
+    </div>
+    <p class="note" data-i18n="fixMore"></p>
+  </section>
+
   <hr>
   <p class="note" style="text-align:center" data-i18n="reqs"></p>
   <p class="note" style="text-align:center" data-i18n="readme"></p>
@@ -283,7 +298,15 @@ const I18N = {
     who5:"<strong>Privacy‑conscious, cross‑ecosystem users</strong> — local, no account, any phone → any desktop OS.",
     beyondTitle:"Beyond the desktop",
     beyond:"<strong>Any device that is a display plus a cursor — but no real keyboard — has the same text‑input problem</strong>, and the same phone‑relay solves it: game consoles (search, passwords, messages), <strong>karaoke machines</strong> (song search, brutal for CJK titles — a phone brings full IME, handwriting, and “just say the song name” voice search), smart TVs, kiosks, VR headsets, car infotainment. Cheap to build, cross‑vendor, zero install. <strong>Stop making on‑screen keyboards less bad — let the phone be the keyboard.</strong><br><br>And it <strong>deploys at scale</strong> — from one desktop to public kiosks, arcade rows, karaoke booths, digital signage, or fleet‑wide shared terminals. <em>Scope: this repository implements only the desktop tool; the consoles, karaoke, kiosks, and larger deployments above are the concept — not included here.</em>",
-    readme:"Full setup, troubleshooting, and security details are in the <a href='https://github.com/iravan/phone-ime-connect#readme'>README →</a>"
+    readme:"Full setup, troubleshooting, and security details are in the <a href='https://github.com/iravan/phone-ime-connect#readme'>README →</a>",
+    fixTitle:"Common problems & fixes", fixIntro:"The blockers almost every first-time user hits — each is normal and has a quick fix.",
+    fix1:"🪟 <strong>Windows: “Windows protected your PC.”</strong> SmartScreen warns about any new unsigned download. <strong>Fix:</strong> click <strong>More info</strong> → <strong>Run anyway</strong> (or right-click the file → <strong>Properties</strong> → tick <strong>Unblock</strong>).",
+    fix2:"🍎 <strong>macOS: won't open — “Apple could not verify…” or “app is damaged.”</strong> Releases are ad-hoc signed, not notarized. <strong>Fix:</strong> move it to Applications, then in Terminal run <code>xattr -cr /Applications/PhoneInputConnect.app</code> and <code>codesign --force --deep --sign - /Applications/PhoneInputConnect.app</code> (once). Or: <strong>System Settings → Privacy &amp; Security → Open Anyway</strong>.",
+    fix3:"⌨️ <strong>macOS: messages arrive but nothing is typed.</strong> Typing into other apps needs Accessibility permission. <strong>Fix:</strong> approve the prompt on first launch, or enable it under <strong>System Settings → Privacy &amp; Security → Accessibility</strong>.",
+    fix4:"🔒 <strong>Phone: “Your connection is not private.”</strong> The link uses a self-signed certificate — safe on your own network. <strong>Fix:</strong> tap <strong>Advanced</strong> (or <strong>Show details</strong>) → <strong>Proceed / Continue</strong>. Once per phone.",
+    fix5:"📶 <strong>Phone can't open the page at all.</strong> The phone and computer aren't on the same network, or the guessed address is wrong. <strong>Fix:</strong> join the <strong>same Wi-Fi</strong> (not guest, not mobile data); if it still fails, set <code>PHONE_INPUT_CONNECT_LAN_IP</code> to your computer's Wi-Fi IPv4 before launching.",
+    fix6:"🐧 <strong>Linux/Wayland: typing silently does nothing.</strong> Many Wayland desktops block simulated keystrokes. <strong>Fix:</strong> the text is already on your clipboard — just press <strong>Ctrl+V</strong> yourself in the target window.",
+    fixMore:"Screenshots and full steps for each are in the <a href='https://github.com/iravan/phone-ime-connect#common-problems--fixes'>README →</a>"
   },
   "zh-Hant":{
     tag:"用手機打字，直接輸入到電腦。",
@@ -291,7 +314,7 @@ const I18N = {
     intro:"在電腦上執行這個小程式，它會顯示一個 QR code；用手機掃描（同一個 Wi‑Fi、不用安裝任何 App），在開啟的網頁輸入或用說的，內容就會即時輸入到目前作用中的視窗——就像你親手打的一樣。<strong>不需帳號、不經雲端、不用安裝手機程式。</strong>",
     voice:"<strong>最強用途：語音輸入。</strong>按下手機鍵盤的麥克風、開口說，辨識出的文字就會送進<strong>任何</strong>一個電腦程式——編輯器、聊天框、終端機、搜尋列、表單。等於替每個程式加上語音輸入。",
     probTitle:"問題——以及目標",
-    prob:"在電腦上，要輸入非純英文的內容很痛苦：切換輸入法、用滑鼠操作手寫板、在候選字裡翻找，或只能對少數支援聽寫的程式說話。然而你手上最好的鍵盤——你的手機，帶著調校過的輸入法、手寫與語音——卻碰不到電腦上的程式。<strong>目標：讓你的手機能打字進電腦上任何程式，零設定，而且資料完全不離開你的網路。</strong>",
+    prob:"在電腦上，要輸入非純英文的內容很痛苦：切換輸入法、用滑鼠操作手寫板、在候選字裡翻找，或只能對少數支援聽寫的程式說話。然而你手上最好的鍵盤——你的手機，帶著調校過的輸入法、手寫與語音——卻碰不到電腦上的程式。<strong>目標：讓你的手機能打字進電腦上任何程式，零設定，而且資料完全不離開你的網絡。</strong>",
     nutTitle:"簡單來說",
     nut:"把手機當成電腦的鍵盤。掃描 QR code，在手機上打字（或用說的），文字就會出現在目前作用中的視窗。概念就這麼簡單——完整流程就在下方。",
     nutFlow:"📷 掃描 QR&nbsp;&nbsp;→&nbsp;&nbsp;⌨️ 在手機上打字&nbsp;&nbsp;→&nbsp;&nbsp;💻 出現在電腦上",
@@ -299,14 +322,14 @@ const I18N = {
     diagTitle:"流程：手機 → 你的電腦 → 作用中的視窗",
     diagPhone:"你的手機", diagApp1:"PhoneInputConnect", diagApp2:"（在你的電腦上）", diagTarget:"作用中的視窗",
     diagArrow1:"① 掃描 QR · 加密 WebSocket", diagArrow2:"② 剪貼簿 + 貼上（Ctrl/Cmd+V）", diagArrow3:"以聊天泡泡回傳",
-    step1:"<strong>啟動。</strong>程式開啟一個原生視窗顯示 QR code，並啟動一個只綁定你區網位址、以 TLS 加密的小型網頁伺服器。",
+    step1:"<strong>啟動。</strong>程式開啟一個原生視窗顯示 QR code，並啟動一個只綁定你區域網絡位址、以 TLS 加密的小型網頁伺服器。",
     step2:"<strong>配對。</strong>用手機相機掃描 QR。網址帶有 256 位元 token；手機開啟由你電腦提供的聊天頁面。",
     step3:"<strong>連線。</strong>手機建立 WebSocket，驗證 token 後立即更換，讓 QR 無法被重用。同時只允許一支手機。",
     step4:"<strong>輸入或用說的。</strong>送出訊息，會以聊天泡泡回傳到手機，並送往電腦。",
     step5:"<strong>投遞。</strong>先保存你的剪貼簿，把訊息放上剪貼簿並貼到作用中的視窗（Ctrl/Cmd+V），再還原你原本的剪貼簿。",
     step6:"<strong>斷線容忍。</strong>手機若短暫掉線，同一組 QR 約 45 秒內仍有效，可自動重連、無需重掃。",
     secTitle:"安全與隱私", secIntro:"設計上可安全用於一般、不可信的 Wi‑Fi。",
-    sec1:"🔒 <strong>僅限本機網路。</strong>只綁定你的區網位址、絕不用 0.0.0.0；找不到位址就拒絕啟動。",
+    sec1:"🔒 <strong>僅限本機網絡。</strong>只綁定你的區域網絡位址、絕不用 0.0.0.0；找不到位址就拒絕啟動。",
     sec2:"🔐 <strong>全程加密。</strong>採用每位使用者自簽的 TLS 憑證（也就是瀏覽器一次性警告的原因）。",
     sec3:"🎟️ <strong>無法猜到的配對。</strong>256 位元 token，手機一連上就更換，五分鐘未使用即失效。",
     sec4:"🧹 <strong>不留任何資料。</strong>紀錄只是記憶體中最近 10 則的環形緩衝；每次貼上後都還原剪貼簿。",
@@ -321,7 +344,15 @@ const I18N = {
     who5:"<strong>重視隱私、跨生態系的人</strong>——本機、免帳號，任何手機對任何桌面系統。",
     beyondTitle:"不只桌面電腦",
     beyond:"<strong>任何「有螢幕、有游標、卻沒有好鍵盤」的裝置都有同樣的輸入難題</strong>，同一套手機接力都能解決：遊戲主機（搜尋、帳密、訊息）、<strong>卡拉OK 點歌機</strong>（點歌尤其痛苦，中日韓歌名用遙控器幾乎無解——手機帶來完整輸入法、手寫，甚至「用說的」點歌）、智慧電視、自助機台、VR、車載系統。實作便宜、跨品牌、免安裝。<strong>與其把螢幕鍵盤做得比較不爛，不如讓手機直接當鍵盤。</strong><br><br>而且它也能<strong>大規模部署</strong>：從單台電腦到公共自助機、卡拉OK 包廂、數位看板，甚至整個場館或車隊規模的共用終端。<em>範圍：本專案僅實作「桌面版」；上述遊戲主機、卡拉OK、自助機與更大規模的部署只是概念，並未包含在此。</em>",
-    readme:"完整安裝、疑難排解與安全性說明請見 <a href='https://github.com/iravan/phone-ime-connect#readme'>README →</a>"
+    readme:"完整安裝、疑難排解與安全性說明請見 <a href='https://github.com/iravan/phone-ime-connect#readme'>README →</a>",
+    fixTitle:"常見問題與解決方法", fixIntro:"幾乎每位第一次使用的人都會遇到以下情況——都屬正常，也都有快速的解決方法。",
+    fix1:"🪟 <strong>Windows：「Windows 已保護您的電腦」。</strong>SmartScreen 會對任何新的、未簽署的下載程式提出警告。<strong>解決：</strong>按 <strong>更多資訊</strong> → <strong>仍要執行</strong>（或在檔案上按右鍵 → <strong>內容</strong> → 勾選 <strong>解除封鎖</strong>）。",
+    fix2:"🍎 <strong>macOS：無法開啟——「Apple 無法驗證…」或「App 已損毀」。</strong>目前的版本只做 ad-hoc 簽署、未經公證。<strong>解決：</strong>先把程式移到「應用程式」資料夾，再於終端機執行 <code>xattr -cr /Applications/PhoneInputConnect.app</code> 及 <code>codesign --force --deep --sign - /Applications/PhoneInputConnect.app</code>（只需一次）。或到 <strong>系統設定 → 私隱與安全性 → 仍要打開</strong>。",
+    fix3:"⌨️ <strong>macOS：訊息送到了，但沒有打出文字。</strong>把文字輸入到其他 App 需要「輔助使用」權限。<strong>解決：</strong>在首次啟動時允許該提示，或到 <strong>系統設定 → 私隱與安全性 → 輔助使用</strong> 開啟。",
+    fix4:"🔒 <strong>手機：「你的連線並不安全」。</strong>連線用的是自簽憑證——在自己的網絡上是安全的。<strong>解決：</strong>按 <strong>進階</strong>（或 <strong>顯示詳細資料</strong>）→ <strong>繼續前往</strong>。每部手機只需做一次。",
+    fix5:"📶 <strong>手機完全打不開網頁。</strong>手機與電腦不在同一個網絡，或程式猜錯了位址。<strong>解決：</strong>連上 <strong>同一個 Wi-Fi</strong>（不要用訪客網絡或流動數據）；若仍失敗，啟動前把 <code>PHONE_INPUT_CONNECT_LAN_IP</code> 設為電腦的 Wi-Fi IPv4 位址。",
+    fix6:"🐧 <strong>Linux／Wayland：打字沒有任何反應。</strong>不少 Wayland 桌面會封鎖模擬按鍵。<strong>解決：</strong>文字其實已在剪貼簿上——自己在目標視窗按 <strong>Ctrl+V</strong> 即可。",
+    fixMore:"每項的截圖與完整步驟請見 <a href='https://github.com/iravan/phone-ime-connect#common-problems--fixes'>README →</a>"
   },
   "zh-Hans":{
     tag:"用手机打字，直接输入到电脑。",
@@ -359,7 +390,15 @@ const I18N = {
     who5:"<strong>重视隐私、跨生态系统的人</strong>——本地、免账号，任何手机对任何桌面系统。",
     beyondTitle:"不只桌面电脑",
     beyond:"<strong>任何“有屏幕、有光标、却没有好键盘”的设备都有同样的输入难题</strong>，同一套手机接力都能解决：游戏主机（搜索、账号密码、消息）、<strong>卡拉OK 点歌机</strong>（点歌尤其痛苦，中日韩歌名用遥控器几乎无解——手机带来完整输入法、手写，甚至“用说的”点歌）、智能电视、自助机、VR、车载系统。实现便宜、跨品牌、免安装。<strong>与其把屏幕键盘做得没那么烂，不如让手机直接当键盘。</strong><br><br>而且它也能<strong>大规模部署</strong>：从单台电脑到公共自助机、卡拉OK 包厢、数字看板，甚至整个场馆或车队规模的共用终端。<em>范围：本项目仅实现“桌面版”；上述游戏主机、卡拉OK、自助机与更大规模的部署只是概念，并未包含在此。</em>",
-    readme:"完整安装、疑难排解与安全性说明请见 <a href='https://github.com/iravan/phone-ime-connect#readme'>README →</a>"
+    readme:"完整安装、疑难排解与安全性说明请见 <a href='https://github.com/iravan/phone-ime-connect#readme'>README →</a>",
+    fixTitle:"常见问题与解决方法", fixIntro:"几乎每位第一次使用的人都会遇到以下情况——都属正常，也都有快速的解决方法。",
+    fix1:"🪟 <strong>Windows：“Windows 已保护你的电脑”。</strong>SmartScreen 会对任何新的、未签名的下载程序提出警告。<strong>解决：</strong>点 <strong>更多信息</strong> → <strong>仍要运行</strong>（或右键点文件 → <strong>属性</strong> → 勾选 <strong>解除锁定</strong>）。",
+    fix2:"🍎 <strong>macOS：无法打开——“Apple 无法验证…”或“App 已损坏”。</strong>目前的版本只做 ad-hoc 签名、未经公证。<strong>解决：</strong>先把程序移到“应用程序”文件夹，再在终端执行 <code>xattr -cr /Applications/PhoneInputConnect.app</code> 及 <code>codesign --force --deep --sign - /Applications/PhoneInputConnect.app</code>（只需一次）。或到 <strong>系统设置 → 隐私与安全性 → 仍要打开</strong>。",
+    fix3:"⌨️ <strong>macOS：消息送到了，但没有打出文字。</strong>把文字输入到其他 App 需要“辅助功能”权限。<strong>解决：</strong>在首次启动时允许该提示，或到 <strong>系统设置 → 隐私与安全性 → 辅助功能</strong> 开启。",
+    fix4:"🔒 <strong>手机：“你的连接不是私密连接”。</strong>连接用的是自签证书——在自己的网络上是安全的。<strong>解决：</strong>点 <strong>高级</strong>（或 <strong>显示详情</strong>）→ <strong>继续前往</strong>。每部手机只需做一次。",
+    fix5:"📶 <strong>手机完全打不开网页。</strong>手机与电脑不在同一个网络，或程序猜错了地址。<strong>解决：</strong>连上 <strong>同一个 Wi-Fi</strong>（不要用访客网络或移动数据）；若仍失败，启动前把 <code>PHONE_INPUT_CONNECT_LAN_IP</code> 设为电脑的 Wi-Fi IPv4 地址。",
+    fix6:"🐧 <strong>Linux／Wayland：打字没有任何反应。</strong>不少 Wayland 桌面会拦截模拟按键。<strong>解决：</strong>文字其实已在剪贴板上——自己在目标窗口按 <strong>Ctrl+V</strong> 即可。",
+    fixMore:"每项的截图与完整步骤请见 <a href='https://github.com/iravan/phone-ime-connect#common-problems--fixes'>README →</a>"
   },
   "ja":{
     tag:"スマホで入力し、そのまま PC へ。",
@@ -397,7 +436,15 @@ const I18N = {
     who5:"<strong>プライバシー重視・複数 OS の人</strong>——ローカル・アカウント不要、どのスマホからどの OS へも。",
     beyondTitle:"デスクトップだけではありません",
     beyond:"<strong>画面とカーソルはあるが、まともなキーボードがない機器</strong>はどれも同じ入力問題を抱えます：ゲーム機（検索・パスワード・メッセージ）、<strong>カラオケ</strong>（曲名検索、とくに日中韓の曲名はリモコンではほぼ不可能——スマホなら完全な入力・手書き・「声で曲名」検索まで）、スマート TV、キオスク、VR、車載。実装は安価・機種横断・インストール不要。<strong>画面キーボードを少しマシにするより、スマホをキーボードにしましょう。</strong><br><br>しかも<strong>大規模展開</strong>も可能です：1 台の PC から、公共キオスク、アーケード筐体、カラオケの各ブース、デジタルサイネージ、施設・車両群規模の共用端末まで。<em>スコープ：本リポジトリはデスクトップ版のみを実装。上記のゲーム機・カラオケ・キオスク・大規模展開は概念であり、ここには含まれません。</em>",
-    readme:"詳しいセットアップ・トラブル対処・セキュリティは <a href='https://github.com/iravan/phone-ime-connect#readme'>README →</a>"
+    readme:"詳しいセットアップ・トラブル対処・セキュリティは <a href='https://github.com/iravan/phone-ime-connect#readme'>README →</a>",
+    fixTitle:"よくある問題と対処", fixIntro:"初回利用でほぼ誰もが出会う引っかかりです——どれも正常で、すぐ直せます。",
+    fix1:"🪟 <strong>Windows：「WindowsによってPCが保護されました」。</strong>SmartScreen は新しい未署名のダウンロード全般に警告します。<strong>対処：</strong><strong>詳細情報</strong> →  <strong>実行</strong>（またはファイルを右クリック → <strong>プロパティ</strong> → <strong>ブロックの解除</strong>にチェック）。",
+    fix2:"🍎 <strong>macOS：開けない——「Appleは確認できません…」または「アプリは壊れています」。</strong>配布ビルドはアドホック署名で公証なし。<strong>対処：</strong>アプリを「アプリケーション」に移し、ターミナルで <code>xattr -cr /Applications/PhoneInputConnect.app</code> と <code>codesign --force --deep --sign - /Applications/PhoneInputConnect.app</code> を実行（一度だけ）。または <strong>システム設定 → プライバシーとセキュリティ → このまま開く</strong>。",
+    fix3:"⌨️ <strong>macOS：メッセージは届くのに入力されない。</strong>他アプリへの入力には「アクセシビリティ」権限が必要です。<strong>対処：</strong>初回起動時の許可を承認するか、<strong>システム設定 → プライバシーとセキュリティ → アクセシビリティ</strong> で有効化。",
+    fix4:"🔒 <strong>スマホ：「この接続ではプライバシーが保護されません」。</strong>自己署名証明書を使っています——自分のネットワーク内なら安全です。<strong>対処：</strong><strong>詳細</strong>（または <strong>詳細を表示</strong>）→ <strong>アクセスする／続行</strong>。スマホごとに一度だけ。",
+    fix5:"📶 <strong>スマホでページが全く開かない。</strong>スマホと PC が同じネットワークにないか、推定アドレスが誤り。<strong>対処：</strong><strong>同じ Wi-Fi</strong> に接続（ゲスト用やモバイル通信は不可）。それでも駄目なら起動前に <code>PHONE_INPUT_CONNECT_LAN_IP</code> を PC の Wi-Fi の IPv4 アドレスに設定。",
+    fix6:"🐧 <strong>Linux／Wayland：入力しても何も起きない。</strong>多くの Wayland デスクトップは擬似キー入力をブロックします。<strong>対処：</strong>テキストはクリップボードに入っています——対象ウィンドウで自分で <strong>Ctrl+V</strong> を押してください。",
+    fixMore:"各項目のスクリーンショットと詳しい手順は <a href='https://github.com/iravan/phone-ime-connect#common-problems--fixes'>README →</a>"
   },
   "ko":{
     tag:"휴대폰으로 입력해 PC에 그대로.",
@@ -435,7 +482,15 @@ const I18N = {
     who5:"<strong>프라이버시·크로스 생태계 중시</strong>——로컬·계정 불필요, 어떤 휴대폰에서 어떤 OS로든.",
     beyondTitle:"데스크톱만이 아닙니다",
     beyond:"<strong>화면과 커서는 있지만 제대로 된 키보드가 없는 기기</strong>는 모두 같은 입력 문제를 겪습니다: 게임 콘솔(검색·비밀번호·메시지), <strong>노래방 기기</strong>(곡 검색, 특히 중·일·한 곡명은 리모컨으로 사실상 불가능——휴대폰이면 완전한 입력·손글씨·“음성으로 곡명” 검색까지), 스마트 TV, 키오스크, VR, 차량 인포테인먼트. 구현이 저렴하고 기기 무관하며 설치가 필요 없습니다. <strong>화면 키보드를 덜 나쁘게 만들기보다, 휴대폰을 키보드로 삼으세요.</strong><br><br>게다가 <strong>대규모로 배포</strong>할 수도 있습니다: PC 한 대에서 공공 키오스크, 아케이드 기기, 노래방 각 룸, 디지털 사이니지, 시설·차량군 규모의 공용 단말까지. <em>범위: 이 저장소는 데스크톱 버전만 구현합니다. 위의 게임 콘솔·노래방·키오스크·대규모 배포는 개념이며 여기 포함되지 않습니다.</em>",
-    readme:"자세한 설치·문제 해결·보안 내용은 <a href='https://github.com/iravan/phone-ime-connect#readme'>README →</a>"
+    readme:"자세한 설치·문제 해결·보안 내용은 <a href='https://github.com/iravan/phone-ime-connect#readme'>README →</a>",
+    fixTitle:"자주 겪는 문제와 해결", fixIntro:"처음 쓰는 사람 대부분이 만나는 걸림돌입니다 — 모두 정상이며 간단히 해결됩니다.",
+    fix1:"🪟 <strong>Windows: “Windows에서 PC를 보호했습니다”.</strong> SmartScreen은 새로 내려받은 서명되지 않은 프로그램 전반에 경고합니다. <strong>해결:</strong> <strong>추가 정보</strong> → <strong>실행</strong>(또는 파일 우클릭 → <strong>속성</strong> → <strong>차단 해제</strong> 체크).",
+    fix2:"🍎 <strong>macOS: 열리지 않음 — “Apple에서 확인할 수 없음…” 또는 “앱이 손상됨”.</strong> 배포 빌드는 애드혹 서명이며 공증되지 않았습니다. <strong>해결:</strong> 앱을 응용 프로그램 폴더로 옮긴 뒤 터미널에서 <code>xattr -cr /Applications/PhoneInputConnect.app</code> 와 <code>codesign --force --deep --sign - /Applications/PhoneInputConnect.app</code> 실행(한 번만). 또는 <strong>시스템 설정 → 개인정보 보호 및 보안 → 그래도 열기</strong>.",
+    fix3:"⌨️ <strong>macOS: 메시지는 오는데 입력되지 않음.</strong> 다른 앱에 입력하려면 손쉬운 사용 권한이 필요합니다. <strong>해결:</strong> 첫 실행 시 프롬프트를 허용하거나 <strong>시스템 설정 → 개인정보 보호 및 보안 → 손쉬운 사용</strong> 에서 켜세요.",
+    fix4:"🔒 <strong>휴대폰: “연결이 비공개로 설정되어 있지 않습니다”.</strong> 자체 서명 인증서를 사용합니다 — 내 네트워크에서는 안전합니다. <strong>해결:</strong> <strong>고급</strong>(또는 <strong>세부정보 표시</strong>) → <strong>계속/이동</strong>. 휴대폰마다 한 번만.",
+    fix5:"📶 <strong>휴대폰에서 페이지가 아예 안 열림.</strong> 휴대폰과 컴퓨터가 같은 네트워크가 아니거나 주소를 잘못 추정한 경우. <strong>해결:</strong> <strong>같은 Wi-Fi</strong> 에 연결(게스트망·모바일 데이터 불가). 그래도 안 되면 실행 전 <code>PHONE_INPUT_CONNECT_LAN_IP</code> 를 컴퓨터의 Wi-Fi IPv4 주소로 설정하세요.",
+    fix6:"🐧 <strong>Linux／Wayland: 입력해도 아무 일이 없음.</strong> 많은 Wayland 데스크톱이 가상 키 입력을 차단합니다. <strong>해결:</strong> 텍스트는 이미 클립보드에 있습니다 — 대상 창에서 직접 <strong>Ctrl+V</strong> 를 누르세요.",
+    fixMore:"각 항목의 스크린샷과 자세한 절차는 <a href='https://github.com/iravan/phone-ime-connect#common-problems--fixes'>README →</a>"
   }
 };
 
@@ -458,9 +513,9 @@ const I18N = {
   tabs.forEach(function(t){ t.addEventListener('click', function(){ apply(t.dataset.lang); }); });
   var saved; try{ saved = localStorage.getItem('pic_lang'); }catch(e){}
   var nav = (navigator.language||'en');
-  var guess = nav.indexOf('zh')===0 ? (/hant|tw|hk|mo/i.test(nav)?'zh-Hant':'zh-Hans')
+  var guess = nav.indexOf('zh')===0 ? (/hans|^zh-cn|^zh-sg/i.test(nav)?'zh-Hans':'zh-Hant')
             : nav.indexOf('ja')===0 ? 'ja'
-            : nav.indexOf('ko')===0 ? 'ko' : 'en';
+            : nav.indexOf('ko')===0 ? 'ko' : 'zh-Hant';
   apply(have.indexOf(saved)>=0 ? saved : guess);
 })();
 </script>
