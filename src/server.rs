@@ -19,29 +19,36 @@
 //!   address, never `0.0.0.0` -- refuses to start at all if no such
 //!   address can be found.
 //! - TLS (self-signed, see `tls.rs`) encrypts the LAN hop.
-//! - A single 256-bit random token, embedded in the QR URL path, gates the
-//!   WebSocket upgrade for the *initial* pairing. It is unguessable and
-//!   immediately rotated the first time a phone successfully connects, so a
-//!   QR code, once used, cannot be reused to open a second, competing
-//!   session. It also expires on its own (`TOKEN_TTL`) if nothing ever
-//!   connects. `RECONNECT_GRACE` keeps it briefly reusable after a drop for
-//!   a token-phase reconnect, before the resume secret below takes over.
-//! - The static chat page carries no secret, so it is served for any path --
-//!   a phone whose tab the OS discarded can reload its old `/<token>` URL and
-//!   re-pair from the resume secret. Pairing is gated at the WebSocket, never
-//!   by whether the page is served.
-//! - On first pairing the desktop hands the phone a second 256-bit **resume
-//!   secret** (used at `/r/:secret/ws`), kept only in memory. The phone
-//!   stores it and authenticates every later reconnect with it, so an
-//!   ordinary drop, tab discard, or long backgrounding never needs a fresh
-//!   scan. It is cleared by "New code" and lost on desktop restart (nothing
-//!   is persisted to disk) -- the only times a rescan is then required.
+//! - The QR URL embeds a 256-bit random **pairing secret** at `/r/:secret`.
+//!   Any browser that opens the URL authenticates its WebSocket with that
+//!   secret (`/r/:secret/ws`), and the desktop honors it repeatedly rather
+//!   than burning it on first use. So the *same* URL connects every time,
+//!   across a scan, an iOS "Open in Safari" hand-off (a different storage
+//!   context with no shared `localStorage`), a reload, a tab discard, a
+//!   Wi-Fi drop, or long backgrounding -- no rescan. The secret is minted at
+//!   startup, rotated by "New code", and lost on desktop restart (never
+//!   persisted); those are the only times a rescan is needed. The phone also
+//!   stores the secret (re-sent on connect) so it reconnects even if it later
+//!   lands on a URL that no longer carries it.
+//! - Tradeoff vs. a burn-once QR: a photo of the code can pair until the next
+//!   "New code"/restart. Still gated by LAN-only binding, TLS, one phone at a
+//!   time, per-IP rate limiting, and 256 bits of unguessable entropy.
+//! - The static chat page carries no secret and is served for any path;
+//!   pairing is gated only at the WebSocket. A legacy burn-once `/:token`
+//!   pairing path still exists (the token rotates on first use / `TOKEN_TTL`,
+//!   with `RECONNECT_GRACE` after a drop), but it is no longer what the QR
+//!   points at.
 //! - Only one phone may be connected at a time.
 //! - Failed-token requests are rate-limited per source IP (defense in
 //!   depth against scanning/log-spam, not against brute-forcing 256 bits,
 //!   which is already computationally infeasible).
 //! - Nothing is persisted to disk: chat history is an in-memory ring
 //!   buffer capped at `HISTORY_MAX` and vanishes when the server stops.
+//!
+//! ponytail: the burn-once token machinery (`token`, `paired`,
+//! `grace_deadline`, `rotate_token`, the expiry task) is now bypassed by the
+//! secret-in-QR flow above and only drives the legacy `/:token` route + the
+//! "reconnecting" UI hint. Removable in a follow-up if `/:token` is dropped.
 
 use std::collections::{HashMap, VecDeque};
 use std::io;
@@ -125,11 +132,11 @@ struct ServerState {
     lan_port: u16,
     token: Mutex<String>,
     token_created_at: Mutex<Instant>,
-    // Long-lived per-pairing secret the phone stores to reconnect without a
-    // fresh QR scan (see the module doc). In-memory only: minted lazily on
-    // first pairing, cleared by "New code", and gone on restart. `None` until
-    // a phone has paired at least once since the last reset.
-    resume_secret: Mutex<Option<String>>,
+    // The 256-bit pairing secret embedded in the QR URL (`/r/:secret`) and
+    // honored idempotently at `/r/:secret/ws` -- see the module doc.
+    // In-memory only: minted at startup, rotated by "New code", gone on
+    // restart. Always set, so the QR always carries a working credential.
+    resume_secret: Mutex<String>,
     active: Mutex<bool>,
     // Whether the current token has ever been used to successfully pair.
     // Distinguishes "fresh QR, never scanned" (subject to `TOKEN_TTL`)
@@ -159,12 +166,11 @@ impl ServerState {
         *self.token_created_at.lock().unwrap() = Instant::now();
     }
 
-    /// Returns the current resume secret, minting one on first use. Called
-    /// when a phone (re)connects so it always leaves holding the current
-    /// value; a resume connect necessarily hits an existing `Some`.
-    fn ensure_resume_secret(&self) -> String {
-        let mut secret = self.resume_secret.lock().unwrap();
-        secret.get_or_insert_with(new_token).clone()
+    /// The current pairing secret (the one embedded in the QR URL). Always
+    /// set; handed to the phone on every connect so it can also reconnect
+    /// from storage if it later lands on a URL without the secret in it.
+    fn current_resume_secret(&self) -> String {
+        self.resume_secret.lock().unwrap().clone()
     }
 
     /// Immediately invalidates the current code and issues a fresh one,
@@ -181,18 +187,21 @@ impl ServerState {
         self.rotate_token();
         *self.grace_deadline.lock().unwrap() = None;
         *self.paired.lock().unwrap() = false;
-        // "New code" is an explicit re-pair: drop the resume secret so a
-        // previously-paired (e.g. lost) phone can no longer reconnect.
-        *self.resume_secret.lock().unwrap() = None;
+        // "New code" is an explicit re-pair: mint a fresh secret (and thus a
+        // fresh QR) so the old URL -- or a photo of the old QR -- can no
+        // longer reconnect.
+        *self.resume_secret.lock().unwrap() = new_token();
         self.broadcast_dashboard();
     }
 
     fn pairing_url(&self) -> String {
+        // The QR points straight at the resume endpoint's page so any browser
+        // opening it pairs with the (idempotent) secret -- see the module doc.
         format!(
-            "https://{}:{}/{}",
+            "https://{}:{}/r/{}",
             self.lan_ip,
             self.lan_port,
-            self.current_token()
+            self.current_resume_secret()
         )
     }
 
@@ -287,10 +296,10 @@ async fn resume_ws(
             return StatusCode::TOO_MANY_REQUESTS.into_response();
         }
     }
-    let matches = state.resume_secret.lock().unwrap().as_deref() == Some(secret.as_str());
+    let matches = *state.resume_secret.lock().unwrap() == secret;
     if !matches {
-        // No secret set (never paired, or cleared by "New code"/restart) or a
-        // stale one. Deliberately NOT counted toward the rate-limit block: the
+        // A stale secret (rotated by "New code", or from before a restart).
+        // Deliberately NOT counted toward the rate-limit block: the
         // secret is 256-bit (brute force is infeasible, so nothing to defend
         // against here), and the common case is a legit phone retrying an
         // invalidated secret every few seconds -- blocking its IP would then
@@ -354,7 +363,7 @@ async fn handle_phone_socket(mut socket: WebSocket, state: Arc<ServerState>, via
     // same value every time) so it can reconnect after a drop, tab discard, or
     // long backgrounding without a fresh scan. In-memory only -- see the
     // module doc.
-    let resume_secret = state.ensure_resume_secret();
+    let resume_secret = state.current_resume_secret();
     let _ = socket
         .send(Message::Text(
             serde_json::json!({"type": "resume", "secret": resume_secret}).to_string(),
@@ -514,6 +523,7 @@ fn build_router(state: Arc<ServerState>) -> Router {
     Router::new()
         .route("/:token", get(chat_page))
         .route("/:token/ws", get(chat_ws))
+        .route("/r/:secret", get(chat_page))
         .route("/r/:secret/ws", get(resume_ws))
         .with_state(state)
 }
@@ -553,7 +563,7 @@ impl PairingServer {
             lan_port: lan_addr.port(),
             token: Mutex::new(new_token()),
             token_created_at: Mutex::new(Instant::now()),
-            resume_secret: Mutex::new(None),
+            resume_secret: Mutex::new(new_token()),
             active: Mutex::new(false),
             paired: Mutex::new(false),
             grace_deadline: Mutex::new(None),
@@ -690,7 +700,7 @@ mod tests {
             lan_port: 0,
             token: Mutex::new(new_token()),
             token_created_at: Mutex::new(Instant::now()),
-            resume_secret: Mutex::new(None),
+            resume_secret: Mutex::new(new_token()),
             active: Mutex::new(false),
             paired: Mutex::new(false),
             grace_deadline: Mutex::new(None),
@@ -714,14 +724,16 @@ mod tests {
     #[test]
     fn resume_secret_lifecycle() {
         let state = test_state();
-        assert!(state.resume_secret.lock().unwrap().is_none());
-        // Minted once, then stable across reconnects.
-        let first = state.ensure_resume_secret();
-        assert_eq!(first, state.ensure_resume_secret());
-        // "New code" revokes it, so a lost phone can't resume; the next
-        // pairing mints a fresh, different secret.
+        // Minted eagerly at startup (so the QR always carries it) and stable
+        // across reconnects.
+        let first = state.current_resume_secret();
+        assert!(!first.is_empty());
+        assert_eq!(first, state.current_resume_secret());
+        // The QR URL embeds that same secret, at the resume endpoint's path.
+        assert!(state.pairing_url().ends_with(&format!("/r/{first}")));
+        // "New code" rotates it to a fresh value, so the old URL (or a photo
+        // of the old QR) can no longer reconnect.
         state.force_new_code();
-        assert!(state.resume_secret.lock().unwrap().is_none());
-        assert_ne!(first, state.ensure_resume_secret());
+        assert_ne!(first, state.current_resume_secret());
     }
 }
