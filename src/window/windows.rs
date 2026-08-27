@@ -149,9 +149,16 @@ pub fn run(runtime: Arc<tokio::runtime::Runtime>, server: Arc<PairingServer>) {
 
     nwg::Window::builder()
         .flags(nwg::WindowFlags::WINDOW | nwg::WindowFlags::VISIBLE)
-        // Tall enough that `qr_frame`'s row-span below actually gets
-        // enough of the grid's vertical space -- see the comment there.
-        .size((360, 870))
+        // Kept as small as the fixed grid allows: at this height the
+        // `qr_frame`'s 8-of-18-row span still works out to ~270px -- clear
+        // of the ~246px QR bitmap it draws (see that control's comment) --
+        // while trimming ~230px of the old height. The history controls
+        // start hidden and only appear once a phone connects (see
+        // `render_snapshot`), so the idle window is just status + QR + hint.
+        // ponytail: a GridLayout can't reflow to reclaim the hidden
+        // controls' rows the way the GTK box / macOS stack do; truly
+        // collapsing that space would need an absolute (non-grid) layout.
+        .size((360, 640))
         // Centered on the primary monitor at launch instead of whatever
         // default position Windows would otherwise pick.
         .center(true)
@@ -470,6 +477,13 @@ fn render_snapshot(app: &App) {
         }
     }
     app.history_box.set_text(&history_text);
+
+    // The message log and its buttons only appear once a phone connects, so
+    // the idle window is just status + QR + hint -- the smallest it can be.
+    // (The grid can't reclaim the freed rows; see the window-size comment.)
+    app.history_box.set_visible(connected);
+    app.copy_last_button.set_visible(connected);
+    app.clear_history_button.set_visible(connected);
 }
 
 fn set_qr_image(app: &App, snapshot: &serde_json::Value) {

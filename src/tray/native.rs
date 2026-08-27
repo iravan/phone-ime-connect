@@ -92,6 +92,8 @@ impl ApplicationHandler<UserEvent> for App {
 
             self.content = Some(content);
             self.window = Some(window);
+            // Shrink to just the idle contents now that they're laid out.
+            self.fit_window();
 
             // The menu-bar tray needs a live NSApplication, so it's built
             // here (first `resumed`) rather than before the event loop, and
@@ -123,6 +125,7 @@ impl ApplicationHandler<UserEvent> for App {
                 if let Some(content) = &self.content {
                     content.set_accessibility_trusted(accessibility_trusted());
                 }
+                self.fit_window();
             }
             _ => {}
         }
@@ -135,6 +138,9 @@ impl ApplicationHandler<UserEvent> for App {
                     content.apply_snapshot(&json);
                     content.set_accessibility_trusted(accessibility_trusted());
                 }
+                // Re-fit: the log section appearing/disappearing changes the
+                // content height (see `Content::fitting_size`).
+                self.fit_window();
             }
             UserEvent::Inject(event) => self.injector.dispatch(event),
             UserEvent::Menu(id) => {
@@ -202,6 +208,18 @@ impl App {
                 self.tray = Some(tray);
             }
             Err(err) => log::warn!("failed to create the tray icon: {err}"),
+        }
+    }
+
+    /// Resizes the window down to just fit its current contents, so the idle
+    /// window (status + QR + hint + button) is a small rectangle and only
+    /// grows when the message log or Accessibility notice appears. Width is
+    /// held steady; only the height tracks the content.
+    fn fit_window(&self) {
+        if let (Some(window), Some(content)) = (&self.window, &self.content) {
+            let (_, h) = content.fitting_size();
+            // Floor guards against a degenerate size before first layout.
+            let _ = window.request_inner_size(LogicalSize::new(420.0, h.max(240.0)));
         }
     }
 

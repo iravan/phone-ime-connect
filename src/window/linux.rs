@@ -142,7 +142,6 @@ fn build_window(app: &Application, runtime: &tokio::runtime::Runtime, server: &A
             server.clear_history();
         });
     }
-    button_row.append(&clear_history_button);
 
     let history_header = Label::new(Some(s.history_header));
     history_header.set_xalign(0.0);
@@ -152,7 +151,29 @@ fn build_window(app: &Application, runtime: &tokio::runtime::Runtime, server: &A
     let history_scroller = ScrolledWindow::builder()
         .child(&history_box)
         .vexpand(true)
+        // A usable log height once the section is shown; also what makes
+        // the window grow to accommodate it (GTK enforces a child's
+        // minimum size on the window), rather than squashing it to nothing.
+        .min_content_height(140)
         .build();
+
+    // The whole message-log area -- rule, header, log, and the "Clear"
+    // button -- lives in one box that stays hidden until a message has
+    // actually arrived (see `apply_snapshot`). Until then the window is
+    // just the QR card and its status: a small, tidy rectangle rather than
+    // one padded out with an empty history pane. Mirrors the macOS
+    // dashboard's behavior (`tray/appkit_dashboard.rs`).
+    let history_actions = GtkBox::new(Orientation::Horizontal, 6);
+    history_actions.set_halign(gtk4::Align::Center);
+    history_actions.append(&clear_history_button);
+
+    let history_section = GtkBox::new(Orientation::Vertical, 12);
+    history_section.set_vexpand(true);
+    history_section.append(&Separator::new(Orientation::Horizontal));
+    history_section.append(&history_header);
+    history_section.append(&history_scroller);
+    history_section.append(&history_actions);
+    history_section.set_visible(false);
 
     let root = GtkBox::new(Orientation::Vertical, 12);
     root.set_margin_top(16);
@@ -163,15 +184,16 @@ fn build_window(app: &Application, runtime: &tokio::runtime::Runtime, server: &A
     root.append(&qr_card);
     root.append(&hint_label);
     root.append(&button_row);
-    root.append(&Separator::new(Orientation::Horizontal));
-    root.append(&history_header);
-    root.append(&history_scroller);
+    root.append(&history_section);
 
     let window = ApplicationWindow::builder()
         .application(app)
         .title("PhoneInputConnect")
-        .default_width(380)
-        .default_height(580)
+        // Sized for the idle state (status + QR card + hint + button) only.
+        // The window grows on its own to fit the message log once that
+        // section is revealed, then the user can size it however they like.
+        .default_width(360)
+        .default_height(430)
         .child(&root)
         .build();
 
@@ -206,6 +228,7 @@ fn build_window(app: &Application, runtime: &tokio::runtime::Runtime, server: &A
                 &qr_card,
                 &qr_picture,
                 &hint_label,
+                &history_section,
                 &history_box,
                 &json,
             );
@@ -255,6 +278,7 @@ fn apply_snapshot(
     qr_card: &GtkBox,
     qr_picture: &Picture,
     hint_label: &Label,
+    history_section: &GtkBox,
     history_box: &GtkBox,
     json: &str,
 ) {
@@ -299,20 +323,18 @@ fn apply_snapshot(
         .get("history")
         .and_then(|v| v.as_array())
         .filter(|items| !items.is_empty());
+    // Reveal the log section only once there's something to show, so the
+    // window stays compact until a message arrives.
     match items {
         Some(items) => {
+            history_section.set_visible(true);
             for item in items {
                 if let Some(text) = item.get("text").and_then(|v| v.as_str()) {
                     history_box.append(&build_history_row(text));
                 }
             }
         }
-        None => {
-            let placeholder = Label::new(Some(s.history_empty));
-            placeholder.add_css_class("dim-label");
-            placeholder.set_margin_top(12);
-            history_box.append(&placeholder);
-        }
+        None => history_section.set_visible(false),
     }
 }
 

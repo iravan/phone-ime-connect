@@ -81,10 +81,12 @@ pub struct Content {
     messages_header: Retained<NSTextField>,
     clear_button: Retained<NSButton>,
     // Kept alive but not otherwise touched: the button weakly references the
-    // target, and the stack/button are also retained by the view hierarchy.
+    // target, and the button is also retained by the view hierarchy.
     _action_target: Retained<ActionTarget>,
     _button: Retained<NSButton>,
-    _stack: Retained<NSStackView>,
+    // The layout stack, retained both to keep the hierarchy alive and so
+    // `fitting_size` can query its current minimum size (see there).
+    stack: Retained<NSStackView>,
 }
 
 impl Content {
@@ -225,8 +227,18 @@ impl Content {
             clear_button,
             _action_target: action_target,
             _button: button,
-            _stack: stack,
+            stack,
         }
+    }
+
+    /// The layout stack's current minimum fitting size (points). Hidden
+    /// arranged subviews collapse out of it, so this shrinks when the QR is
+    /// the only thing showing and grows once the message log or the
+    /// Accessibility notice appears -- letting the caller size the window to
+    /// just fit its contents instead of a fixed, mostly-empty rectangle.
+    pub fn fitting_size(&self) -> (f64, f64) {
+        let size = self.stack.fittingSize();
+        (size.width, size.height)
     }
 
     /// Shows or hides the "grant Accessibility" notice + button. Called with
