@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://iravan.github.io/phone-ime-connect/sitemap.xml
