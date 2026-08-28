@@ -1,6 +1,6 @@
 [package]
 name = "phone-input-connect"
-version = "0.4.14"
+version = "0.4.15"
 edition = "2021"
 license = "GPL-3.0-or-later"
 description = "Type on your desktop by texting it from your phone"
