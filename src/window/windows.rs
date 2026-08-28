@@ -60,7 +60,6 @@ struct App {
     clear_history_button: nwg::Button,
     history_box: nwg::TextBox,
     notice: nwg::Notice,
-    layout: nwg::GridLayout,
     // Menu-bar tray: a notification-area icon plus a popup menu with
     // "Show", a checkable "Launch at login" toggle, and "Quit". Closing the
     // window hides it here instead of quitting; the tray keeps the pairing
@@ -135,7 +134,6 @@ pub fn run(runtime: Arc<tokio::runtime::Runtime>, server: Arc<PairingServer>) {
         clear_history_button: Default::default(),
         history_box: Default::default(),
         notice: Default::default(),
-        layout: Default::default(),
         tray: Default::default(),
         tray_menu: Default::default(),
         tray_show: Default::default(),
@@ -149,16 +147,15 @@ pub fn run(runtime: Arc<tokio::runtime::Runtime>, server: Arc<PairingServer>) {
 
     nwg::Window::builder()
         .flags(nwg::WindowFlags::WINDOW | nwg::WindowFlags::VISIBLE)
-        // Kept as small as the fixed grid allows: at this height the
-        // `qr_frame`'s 8-of-18-row span still works out to ~270px -- clear
-        // of the ~246px QR bitmap it draws (see that control's comment) --
-        // while trimming ~230px of the old height. The history controls
-        // start hidden and only appear once a phone connects (see
-        // `render_snapshot`), so the idle window is just status + QR + hint.
-        // ponytail: a GridLayout can't reflow to reclaim the hidden
-        // controls' rows the way the GTK box / macOS stack do; truly
-        // collapsing that space would need an absolute (non-grid) layout.
-        .size((360, 640))
+        // Just a starting size; `relayout` (from the first `render_snapshot`
+        // below) immediately resizes the window to fit exactly the controls
+        // visible in the current state. There's no GridLayout here on
+        // purpose: its equal rows can't collapse the space left by hidden
+        // controls, so it forced a tall, mostly-empty window. `relayout`
+        // positions everything absolutely, top to bottom, instead -- the
+        // idle window is then just status + QR + hint + button, and it grows
+        // only once a phone connects and the message log appears.
+        .size((316, 470))
         // Centered on the primary monitor at launch instead of whatever
         // default position Windows would otherwise pick.
         .center(true)
@@ -179,13 +176,11 @@ pub fn run(runtime: Arc<tokio::runtime::Runtime>, server: Arc<PairingServer>) {
         // for this app's pairing URLs (fixed-length 256-bit token, so a
         // fixed QR version) it renders at ~246x246px. `ImageFrame` uses
         // SS_CENTERIMAGE, which draws the bitmap at its native size
-        // centered in the control and *clips* it if the control ends
-        // up smaller, rather than scaling it down to fit. This builder
-        // size is only GridLayout's starting hint (it stretches the
-        // control to its actual grid cell below), so what matters most
-        // is that cell being comfortably bigger than ~246px -- this is
-        // just kept in the same ballpark for a sane initial paint.
-        .size((300, 300))
+        // centered in the control and *clips* it if the control ends up
+        // smaller, rather than scaling it down. `relayout` gives it a
+        // 260x260 box -- comfortably above ~246px so nothing is clipped;
+        // this builder size is just the pre-`relayout` initial paint.
+        .size((260, 260))
         .parent(&app.window)
         .build(&mut app.qr_frame)
         .expect("failed to build the QR image frame");
@@ -276,35 +271,9 @@ pub fn run(runtime: Arc<tokio::runtime::Runtime>, server: Arc<PairingServer>) {
         .build(&mut app.tray_quit)
         .expect("failed to build the tray quit item");
 
-    nwg::GridLayout::builder()
-        .parent(&app.window)
-        .max_column(Some(2))
-        // A bit more breathing room than GridLayout's tight 5px default
-        // on both counts -- still comfortably inside the headroom the
-        // row/column sizing below already has to spare.
-        .margin([12, 12, 12, 12])
-        .spacing(8)
-        .child_item(nwg::GridLayoutItem::new(&app.status_label, 0, 0, 2, 1))
-        // Given an 8-row span (out of 18 total rows) in an 870px-tall
-        // window, this cell comes out well over 300px tall -- comfortable
-        // room for the ~246px QR bitmap `set_qr_image` draws into it
-        // (see the `ImageFrame` comment above for why it needs to be
-        // this generous: the control clips an oversized bitmap instead
-        // of scaling it down).
-        .child_item(nwg::GridLayoutItem::new(&app.qr_frame, 0, 1, 2, 8))
-        .child_item(nwg::GridLayoutItem::new(&app.hint_label, 0, 9, 2, 1))
-        .child(0, 10, &app.regenerate_button)
-        .child(1, 10, &app.copy_last_button)
-        .child_item(nwg::GridLayoutItem::new(
-            &app.clear_history_button,
-            0,
-            11,
-            2,
-            1,
-        ))
-        .child_item(nwg::GridLayoutItem::new(&app.history_box, 0, 12, 2, 6))
-        .build(&app.layout)
-        .expect("failed to build the window layout");
+    // No layout manager: controls are placed absolutely by `relayout`,
+    // called from the first `render_snapshot` below and on every state
+    // change thereafter.
 
     let app = Rc::new(app);
 
@@ -479,11 +448,81 @@ fn render_snapshot(app: &App) {
     app.history_box.set_text(&history_text);
 
     // The message log and its buttons only appear once a phone connects, so
-    // the idle window is just status + QR + hint -- the smallest it can be.
-    // (The grid can't reclaim the freed rows; see the window-size comment.)
+    // the idle window is just status + QR + hint + button.
     app.history_box.set_visible(connected);
     app.copy_last_button.set_visible(connected);
     app.clear_history_button.set_visible(connected);
+
+    // Reposition and resize the window to fit exactly what's now visible.
+    relayout(app, connected);
+}
+
+/// Positions the controls top-to-bottom and shrinks the window to just fit
+/// them, so it's never taller than the current state needs. `!connected`
+/// shows the QR and a single full-width "New code" button; `connected`
+/// drops the QR and reveals the two-button row, "Clear", and the log.
+fn relayout(app: &App, connected: bool) {
+    const MARGIN: i32 = 14;
+    const CW: u32 = 272; // content column width
+    const GAP: i32 = 10;
+    const STATUS_H: u32 = 26;
+    const HINT_H: u32 = 44;
+    const BTN_H: u32 = 30;
+    const QR: u32 = 260;
+    const HIST_H: u32 = 200;
+
+    let x = MARGIN;
+    let mut y = MARGIN;
+
+    app.status_label.set_position(x, y);
+    app.status_label.set_size(CW, STATUS_H);
+    y += STATUS_H as i32 + GAP;
+
+    if !connected {
+        // QR centered in the content column.
+        let qr_x = x + (CW as i32 - QR as i32) / 2;
+        app.qr_frame.set_position(qr_x, y);
+        app.qr_frame.set_size(QR, QR);
+        y += QR as i32 + GAP;
+    }
+
+    app.hint_label.set_position(x, y);
+    app.hint_label.set_size(CW, HINT_H);
+    y += HINT_H as i32 + GAP;
+
+    if connected {
+        // "New code" and "Copy last message" side by side.
+        let half = (CW - GAP as u32) / 2;
+        app.regenerate_button.set_position(x, y);
+        app.regenerate_button.set_size(half, BTN_H);
+        app.copy_last_button.set_position(x + half as i32 + GAP, y);
+        app.copy_last_button.set_size(CW - half - GAP as u32, BTN_H);
+        y += BTN_H as i32 + GAP;
+
+        app.clear_history_button.set_position(x, y);
+        app.clear_history_button.set_size(CW, BTN_H);
+        y += BTN_H as i32 + GAP;
+
+        app.history_box.set_position(x, y);
+        app.history_box.set_size(CW, HIST_H);
+        y += HIST_H as i32 + GAP;
+    } else {
+        app.regenerate_button.set_position(x, y);
+        app.regenerate_button.set_size(CW, BTN_H);
+        y += BTN_H as i32 + GAP;
+    }
+
+    // `y` carries a trailing GAP; replace it with the bottom margin to get
+    // the client height the controls need. nwg's window size is the *outer*
+    // rect (controls are placed in client coordinates), so pad for the
+    // title bar and borders or the bottom control would clip. These are
+    // ~100%-DPI approximations, in keeping with this module's fixed-pixel
+    // sizing elsewhere.
+    const V_CHROME: u32 = 39; // caption + top/bottom borders
+    const H_CHROME: u32 = 16; // left + right borders
+    let client_h = (y - GAP + MARGIN) as u32;
+    let win_w = CW + MARGIN as u32 * 2 + H_CHROME;
+    app.window.set_size(win_w, client_h + V_CHROME);
 }
 
 fn set_qr_image(app: &App, snapshot: &serde_json::Value) {
