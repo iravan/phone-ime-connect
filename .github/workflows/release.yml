@@ -1,12 +1,14 @@
 ﻿name: Release
 
-# Builds real Linux packages on real x86_64 infrastructure -- the dev
-# machine this project is otherwise built on is aarch64, which can't
-# reliably cross-compile a GTK4/libxdo-linked binary for x86_64 (no
-# cross-sysroot for those system libraries). The .rpm additionally builds
-# inside an actual Fedora container rather than on the Ubuntu host
-# directly, since its automatic shared-library dependency detection needs
-# to run where the target ecosystem's own packaging conventions live.
+# Builds real Linux packages on real infrastructure -- a GTK4/libxdo-linked
+# binary can't reliably cross-compile between arches (no cross-sysroot for
+# those system libraries), so each arch builds natively on its own runner:
+# x86_64 on the standard runner and arm64 on GitHub's `ubuntu-*-arm` hosted
+# runner. The .rpm additionally builds inside an actual Fedora container
+# rather than on the Ubuntu host directly, since its automatic
+# shared-library dependency detection needs to run where the target
+# ecosystem's own packaging conventions live (the container image is
+# multi-arch, so it matches whichever runner it's on).
 # Pushing a `v*` tag publishes both to one GitHub Release;
 # workflow_dispatch just builds them as downloadable artifacts, for
 # testing without cutting a release.
@@ -21,7 +23,17 @@ permissions:
 
 jobs:
   build-deb:
-    runs-on: ubuntu-latest
+    # x86_64 and arm64 each build natively (cargo-deb stamps the .deb with
+    # the host arch, e.g. _amd64.deb / _arm64.deb).
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            arch: x86_64
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v7
 
@@ -40,11 +52,23 @@ jobs:
       - name: Upload build artifact
         uses: actions/upload-artifact@v7
         with:
-          name: phone-input-connect-deb
+          # Unique per arch: upload-artifact rejects duplicate names.
+          name: phone-input-connect-deb-${{ matrix.arch }}
           path: target/debian/*.deb
 
   build-rpm:
-    runs-on: ubuntu-latest
+    # x86_64 and arm64 each build natively inside the (multi-arch) Fedora
+    # container on their matching runner; cargo-generate-rpm stamps the .rpm
+    # with the host arch (e.g. .x86_64.rpm / .aarch64.rpm).
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            arch: x86_64
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
     container: fedora:latest
     steps:
       - name: Install git (needed before checkout inside this container)
@@ -79,7 +103,8 @@ jobs:
       - name: Upload build artifact
         uses: actions/upload-artifact@v7
         with:
-          name: phone-input-connect-rpm
+          # Unique per arch: upload-artifact rejects duplicate names.
+          name: phone-input-connect-rpm-${{ matrix.arch }}
           path: target/generate-rpm/*.rpm
 
   build-windows:
