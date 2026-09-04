@@ -86,9 +86,23 @@ jobs:
     # Windows was previously unverified (no Windows machine to build it on
     # at all); it's now confirmed working on real hardware, so it gets a
     # release job like the other two platforms. No extra system packages
-    # needed here -- `windows-latest` already ships the MSVC build tools
+    # needed here -- the Windows runners already ship the MSVC build tools
     # `native-windows-gui` needs, same as a plain `cargo run` locally.
-    runs-on: windows-latest
+    #
+    # Both arches build natively (no cross-compiling): x86_64 on the
+    # standard runner, arm64 on GitHub's `windows-11-arm` hosted runner, so
+    # each toolchain targets its own host (`*-pc-windows-msvc`) with no
+    # `--target` flag or ARM64 cross linker to set up. `fail-fast: false`
+    # keeps a hiccup on one arch from cancelling the other.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-latest
+            arch: x86_64
+          - runner: windows-11-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v7
 
@@ -101,7 +115,7 @@ jobs:
       - name: Package
         shell: pwsh
         run: |
-          # Version the zip name (e.g. phone-input-connect-0.4.8-windows-x86_64.zip)
+          # Version the zip name (e.g. phone-input-connect-0.4.8-windows-arm64.zip)
           # so a downloaded file is self-identifying. .deb/.rpm already carry
           # the version via cargo's own naming; this matches them.
           $version = (Select-String -Path Cargo.toml -Pattern '^version = "(.*)"').Matches[0].Groups[1].Value
@@ -109,13 +123,14 @@ jobs:
           Copy-Item target/release/phone-input-connect.exe dist-windows/
           Copy-Item README.md dist-windows/
           Copy-Item LICENSE dist-windows/
-          Compress-Archive -Path dist-windows/* -DestinationPath "phone-input-connect-$version-windows-x86_64.zip"
+          Compress-Archive -Path dist-windows/* -DestinationPath "phone-input-connect-$version-windows-${{ matrix.arch }}.zip"
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v7
         with:
-          name: phone-input-connect-windows
-          path: phone-input-connect-*-windows-x86_64.zip
+          # Unique per arch: upload-artifact rejects duplicate names.
+          name: phone-input-connect-windows-${{ matrix.arch }}
+          path: phone-input-connect-*-windows-${{ matrix.arch }}.zip
 
   publish:
     needs: [build-deb, build-rpm, build-windows]
